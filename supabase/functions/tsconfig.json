@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmit": true,
+    "allowJs": true,
+    "resolveJsonModule": true
+  },
+  "include": ["./**/*.ts", "./types.d.ts"]
+}

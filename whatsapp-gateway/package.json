@@ -1,0 +1,17 @@
+{
+  "name": "tuition-pulse-whatsapp-gateway",
+  "version": "1.0.0",
+  "description": "Free open-source WhatsApp Web gateway using Baileys for Tuition Pulse",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.12",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "qrcode": "^1.5.3"
+  }
+}

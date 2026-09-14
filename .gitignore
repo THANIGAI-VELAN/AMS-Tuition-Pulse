@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+whatsapp-gateway/node_modules/
+
+# Production build output
+dist/
+dist-ssr/
+*.local
+
+# Environment variables
+.env.local
+
+# WhatsApp Baileys Auth Session data (Keep private)
+auth_info_baileys/
+
+# Logs & OS junk
+*.log
+npm-debug.log*
+.DS_Store
+.vscode/
