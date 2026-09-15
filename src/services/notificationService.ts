@@ -126,9 +126,12 @@ export const processPendingNotifications = async (): Promise<{ processed: number
         continue
       }
 
-      // Case 2: 30-second window expired and student is still ABSENT -> Dispatch WhatsApp alert!
+      // Case 2: Strict 30-second window expired and student is still ABSENT -> Dispatch WhatsApp alert!
       const scheduledDate = new Date(notif.scheduled_at)
-      if (now >= scheduledDate && (!att || att.status === 'ABSENT')) {
+      const createdDate = notif.created_at ? new Date(notif.created_at) : scheduledDate
+      const isPast30Sec = (now.getTime() - createdDate.getTime() >= 30000) || (now.getTime() >= scheduledDate.getTime())
+      
+      if (isPast30Sec && (!att || att.status === 'ABSENT')) {
         // 1. Instantly lock this notification ID so no future execution can touch it
         inFlightNotificationIds.add(notif.id)
 

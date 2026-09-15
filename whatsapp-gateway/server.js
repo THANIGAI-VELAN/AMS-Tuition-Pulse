@@ -3,10 +3,13 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import QRCode from 'qrcode'
 import fs from 'fs'
+import pino from 'pino'
 import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
-  fetchLatestBaileysVersion
+  fetchLatestBaileysVersion,
+  makeCacheableSignalKeyStore,
+  Browsers
 } from '@whiskeysockets/baileys'
 
 dotenv.config()
@@ -15,50 +18,77 @@ const app = express()
 const PORT = process.env.PORT || 3001
 const API_SECRET = process.env.GATEWAY_API_SECRET || 'tuition-pulse-secret-key'
 
+const logger = pino({ level: 'error' })
+
 app.use(cors())
 app.use(express.json())
 
 // Global Safety Handlers to prevent server crashes
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception caught:', err.message || err)
+  console.error('[GATEWAY] Uncaught Exception:', err.message || err)
 })
 
 process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Rejection caught:', reason)
+  console.error('[GATEWAY] Unhandled Rejection:', reason)
 })
 
 let socket = null
 let latestQrCode = null
 let connectionStatus = 'DISCONNECTED' // DISCONNECTED | CONNECTING | CONNECTED
 let connectedUser = null
+let reconnectTimer = null
+
+// Message cache for multi-device encryption retries
+// Fixes "Waiting for this message. This may take a while" in WhatsApp
+const msgRetryCache = new Map()
 
 function clearAuthSession() {
   try {
     if (fs.existsSync('auth_info_baileys')) {
       fs.rmSync('auth_info_baileys', { recursive: true, force: true })
-      console.log('Cleared old auth_info_baileys session directory.')
+      console.log('[GATEWAY] Cleared auth session directory.')
     }
   } catch (err) {
-    console.error('Error clearing auth session directory:', err)
+    console.error('[GATEWAY] Error clearing auth session:', err)
   }
 }
 
 async function connectToWhatsApp() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+
   connectionStatus = 'CONNECTING'
+  console.log('[GATEWAY] Initializing WhatsApp connection...')
 
   try {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys')
-    const { version } = await fetchLatestBaileysVersion()
+    const { version, isLatest } = await fetchLatestBaileysVersion()
+    console.log(`[GATEWAY] Using Baileys v${version.join('.')}, isLatest: ${isLatest}`)
 
     socket = makeWASocket({
       version,
-      auth: state,
+      logger,
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(state.keys, logger)
+      },
+      browser: Browsers.windows('Desktop'),
       printQRInTerminal: false,
-      defaultQueryTimeoutMs: undefined,
+      connectTimeoutMs: 60000,
+      keepAliveIntervalMs: 25000,
+      retryRequestDelayMs: 250,
+      maxRetries: 5,
       syncFullHistory: false,
       markOnlineOnConnect: true,
-      getMessage: async () => {
-        return { conversation: 'Tuition Pulse Notification' }
+      generateHighQualityLinkPreview: false,
+      getMessage: async (key) => {
+        if (key.id && msgRetryCache.has(key.id)) {
+          const cached = msgRetryCache.get(key.id)
+          return cached
+        }
+        return { conversation: 'SP Academy Tuition Notification' }
       }
     })
 
@@ -70,7 +100,7 @@ async function connectToWhatsApp() {
       if (qr) {
         latestQrCode = qr
         connectionStatus = 'DISCONNECTED'
-        console.log('New QR Code generated for WhatsApp pairing')
+        console.log('[GATEWAY] Fresh pairing QR code generated.')
       }
 
       if (connection === 'close') {
@@ -81,25 +111,27 @@ async function connectToWhatsApp() {
         latestQrCode = null
         connectedUser = null
 
+        console.log(`[GATEWAY] Connection closed (Status Code: ${statusCode}). Reconnect allowed: ${shouldReconnect}`)
+
         if (shouldReconnect) {
-          console.log(`Connection closed (code ${statusCode}), reconnecting...`)
-          setTimeout(() => connectToWhatsApp(), 3000)
+          const delay = statusCode === DisconnectReason.restartRequired ? 1000 : 3000
+          reconnectTimer = setTimeout(() => connectToWhatsApp(), delay)
         } else {
-          console.log('Logged out from WhatsApp on device. Clearing session...')
+          console.log('[GATEWAY] Session logged out from phone. Resetting auth...')
           clearAuthSession()
-          setTimeout(() => connectToWhatsApp(), 2000)
+          reconnectTimer = setTimeout(() => connectToWhatsApp(), 2000)
         }
       } else if (connection === 'open') {
         connectionStatus = 'CONNECTED'
         latestQrCode = null
         connectedUser = socket.user?.id ? socket.user.id.split(':')[0] : 'Admin'
-        console.log(`WhatsApp Connected Successfully! User: ${connectedUser}`)
+        console.log(`[GATEWAY] WhatsApp Connected Successfully! User Phone: +${connectedUser}`)
       }
     })
   } catch (err) {
-    console.error('Error in connectToWhatsApp:', err)
+    console.error('[GATEWAY] Error in connectToWhatsApp:', err)
     connectionStatus = 'DISCONNECTED'
-    setTimeout(() => connectToWhatsApp(), 5000)
+    reconnectTimer = setTimeout(() => connectToWhatsApp(), 5000)
   }
 }
 
@@ -117,7 +149,8 @@ app.get('/status', (req, res) => {
   res.json({
     status: connectionStatus,
     connectedUser: connectedUser,
-    hasQr: !!latestQrCode
+    hasQr: !!latestQrCode,
+    uptime: Math.round(process.uptime())
   })
 })
 
@@ -128,11 +161,11 @@ app.get('/qr', async (req, res) => {
   }
 
   if (!latestQrCode) {
-    return res.status(503).json({ status: 'WAITING', message: 'QR Code is generating, try again in 3 seconds...' })
+    return res.status(503).json({ status: 'WAITING', message: 'Generating fresh QR code, retry in 2 seconds...' })
   }
 
   try {
-    const qrDataUrl = await QRCode.toDataURL(latestQrCode)
+    const qrDataUrl = await QRCode.toDataURL(latestQrCode, { margin: 2, scale: 7 })
     res.json({ status: 'DISCONNECTED', qrDataUrl })
   } catch (err) {
     res.status(500).json({ error: 'Failed to generate QR image' })
@@ -155,8 +188,8 @@ app.post('/reset', (req, res) => {
   }
 
   clearAuthSession()
-  console.log('Manual session reset requested. Re-initializing WhatsApp client...')
-  setTimeout(() => connectToWhatsApp(), 1500)
+  console.log('[GATEWAY] Manual session reset triggered.')
+  reconnectTimer = setTimeout(() => connectToWhatsApp(), 1500)
 
   res.json({ success: true, message: 'Session reset. Generating fresh QR code...' })
 })
@@ -181,29 +214,43 @@ app.post('/send', verifySecret, async (req, res) => {
       cleanPhone = `91${cleanPhone}`
     }
 
-    // Gateway-Level Deduplication Protection (2-minute cooldown per phone + message text)
+    // High-speed deduplication protection (5-second throttle per identical message to same phone)
     const dedupKey = `${cleanPhone}:${message.trim()}`
     const lastSentTime = sentMessageDeduplication.get(dedupKey)
     const now = Date.now()
 
-    if (lastSentTime && (now - lastSentTime < 120000)) {
-      console.log(`[GATEWAY DEDUPLICATED] Ignored duplicate message to ${cleanPhone} within 2 mins.`)
-      return res.json({ success: true, messageId: 'DEDUPLICATED_SKIP', note: 'Duplicate message blocked by gateway rate limiter' })
+    if (lastSentTime && (now - lastSentTime < 5000)) {
+      console.log(`[GATEWAY] Skipped duplicate send to ${cleanPhone} within 5s.`)
+      return res.json({ success: true, messageId: 'DEDUPLICATED_SKIP', note: 'Duplicate message skipped' })
     }
 
     sentMessageDeduplication.set(dedupKey, now)
+    if (sentMessageDeduplication.size > 500) {
+      sentMessageDeduplication.clear()
+    }
 
     const jid = `${cleanPhone}@s.whatsapp.net`
     const sent = await socket.sendMessage(jid, { text: message })
-    res.json({ success: true, messageId: sent?.key?.id || 'SENT' })
+
+    if (sent?.key?.id) {
+      // Cache message content for encryption retry handshakes
+      msgRetryCache.set(sent.key.id, { conversation: message })
+      if (msgRetryCache.size > 1000) {
+        const firstKey = msgRetryCache.keys().next().value
+        msgRetryCache.delete(firstKey)
+      }
+    }
+
+    console.log(`[GATEWAY] Message sent successfully to ${cleanPhone}. MsgId: ${sent?.key?.id || 'OK'}`)
+    res.json({ success: true, messageId: sent?.key?.id || `GW_${Date.now()}` })
   } catch (err) {
-    console.error('Error sending WhatsApp message:', err)
+    console.error('[GATEWAY] Error sending WhatsApp message:', err)
     res.status(500).json({ error: err.message || 'Failed to send message' })
   }
 })
 
 // Start server and initialize WhatsApp client
 app.listen(PORT, () => {
-  console.log(`Tuition Pulse WhatsApp Gateway running on port ${PORT}`)
+  console.log(`[GATEWAY] Tuition Pulse WhatsApp Gateway running on port ${PORT}`)
   connectToWhatsApp()
 })

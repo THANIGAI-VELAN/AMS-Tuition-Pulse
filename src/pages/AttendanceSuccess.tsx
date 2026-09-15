@@ -24,6 +24,14 @@ export const AttendanceSuccess: React.FC = () => {
 
   const [secondsLeft, setSecondsLeft] = useState<number>(30)
 
+  const [isDispatched, setIsDispatched] = useState<boolean>(false)
+
+  const handleInstantDispatch = async () => {
+    setSecondsLeft(0)
+    setIsDispatched(true)
+    await processPendingNotifications()
+  }
+
   useEffect(() => {
     const target = new Date(scheduledAtIso)
     const update = () => {
@@ -31,6 +39,7 @@ export const AttendanceSuccess: React.FC = () => {
       const remaining = diff > 0 ? diff : 0
       setSecondsLeft(remaining)
       if (remaining === 0) {
+        setIsDispatched(true)
         processPendingNotifications()
       }
     }
@@ -42,6 +51,7 @@ export const AttendanceSuccess: React.FC = () => {
   const mins = Math.floor(secondsLeft / 60)
   const secs = secondsLeft % 60
   const formattedCountdown = `${mins}:${secs < 10 ? '0' : ''}${secs}`
+  const progressPercent = Math.max(0, Math.min(100, ((30 - secondsLeft) / 30) * 100))
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 max-w-md mx-auto flex flex-col justify-between">
@@ -86,15 +96,34 @@ export const AttendanceSuccess: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-sm text-white">30-Sec Dispatch Window</h3>
-                <p className="text-[11px] text-slate-400">Automatic Cancel Window</p>
+                <p className="text-[11px] text-slate-400">
+                  {secondsLeft === 0 ? 'Dispatched to Parents' : 'Automatic Cancel Window'}
+                </p>
               </div>
             </div>
 
-            <div className="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-mono font-bold flex items-center space-x-1">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-              <span>{formattedCountdown}</span>
-            </div>
+            {secondsLeft > 0 ? (
+              <div className="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-mono font-bold flex items-center space-x-1">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                <span>{formattedCountdown}</span>
+              </div>
+            ) : (
+              <div className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center space-x-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Sent</span>
+              </div>
+            )}
           </div>
+
+          {/* Progress bar */}
+          {secondsLeft > 0 && absentCount > 0 && (
+            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-blue-500 to-amber-400 h-1.5 transition-all duration-1000 ease-linear rounded-full"
+                style={{ width: `${progressPercent}%` }}
+              ></div>
+            </div>
+          )}
 
           <div className="space-y-2 text-xs border-t border-slate-800 pt-3">
             <div className="flex items-center justify-between text-slate-400 text-[11px]">
@@ -105,9 +134,15 @@ export const AttendanceSuccess: React.FC = () => {
             {absentCount > 0 ? (
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-slate-400">Pending Parents ({absentCount}):</span>
-                  <span className="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full border border-blue-500/30 font-medium">
-                    Pending Cancel
+                  <span className="text-[11px] text-slate-400">
+                    {secondsLeft === 0 ? 'Notified Parents:' : `Pending Parents (${absentCount}):`}
+                  </span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${
+                    secondsLeft === 0
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                      : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                  }`}>
+                    {secondsLeft === 0 ? 'Dispatched' : 'Pending Cancel'}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 pt-1">
@@ -122,6 +157,16 @@ export const AttendanceSuccess: React.FC = () => {
               <p className="text-emerald-400 text-xs font-semibold">No WhatsApp notifications scheduled (All present)</p>
             )}
           </div>
+
+          {secondsLeft > 0 && absentCount > 0 && (
+            <button
+              onClick={handleInstantDispatch}
+              className="w-full py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-bold flex items-center justify-center space-x-1.5 transition-all active:scale-95"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Skip Wait & Send WhatsApp Now</span>
+            </button>
+          )}
 
           <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 flex items-start space-x-2">
             <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />

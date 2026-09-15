@@ -23,10 +23,10 @@ const NotificationDaemon: React.FC = () => {
     // Process on launch
     processPendingNotifications()
 
-    // Active 3-second background polling for responsive 30-second automated dispatch
+    // High-precision 1-second background daemon for strict 30-second automated dispatch
     const interval = setInterval(() => {
       processPendingNotifications()
-    }, 3000)
+    }, 1000)
 
     return () => clearInterval(interval)
   }, [])
