@@ -16,8 +16,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+const ADMIN_EMAIL = 'spracademy18@gmail.com'
+const ADMIN_PASS = 'Rethusna2018*'
+
 const MOCK_ADMIN_USER: UserSession = {
-  email: 'admin@spacademy.com',
+  email: ADMIN_EMAIL,
   role: 'admin',
   isAuthenticated: true
 }
@@ -31,9 +34,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkSession = async () => {
       try {
         const { data } = await supabase.auth.getSession()
-        if (data.session?.user) {
+        if (data.session?.user && data.session.user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
           setUser({
-            email: data.session.user.email || 'admin@spacademy.com',
+            email: ADMIN_EMAIL,
             role: 'admin',
             isAuthenticated: true
           })
@@ -41,13 +44,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Check local stored session
           const stored = localStorage.getItem('sp_academy_session')
           if (stored) {
-            setUser(JSON.parse(stored))
+            const parsed = JSON.parse(stored)
+            if (parsed.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && parsed.isAuthenticated) {
+              setUser(parsed)
+            } else {
+              localStorage.removeItem('sp_academy_session')
+            }
           }
         }
       } catch {
         const stored = localStorage.getItem('sp_academy_session')
         if (stored) {
-          setUser(JSON.parse(stored))
+          const parsed = JSON.parse(stored)
+          if (parsed.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && parsed.isAuthenticated) {
+            setUser(parsed)
+          } else {
+            localStorage.removeItem('sp_academy_session')
+          }
         }
       } finally {
         setLoading(false)
@@ -59,35 +72,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     setLoading(true)
+    const cleanEmail = email.trim().toLowerCase()
+
+    // Strict Admin Credential Match
+    if (cleanEmail !== ADMIN_EMAIL.toLowerCase() || pass !== ADMIN_PASS) {
+      setLoading(false)
+      return {
+        success: false,
+        error: 'Access Denied: Only authorized SP Academy Admin can access this application.'
+      }
+    }
+
     try {
-      // Try Supabase auth first
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+      // Optional Supabase auth sync
+      await supabase.auth.signInWithPassword({
+        email: ADMIN_EMAIL,
         password: pass,
       })
-
-      if (!error && data.user) {
-        const session = { email: data.user.email || email, role: 'admin', isAuthenticated: true }
-        setUser(session)
-        localStorage.setItem('sp_academy_session', JSON.stringify(session))
-        setLoading(false)
-        return { success: true }
-      }
     } catch {
-      // Fallback
+      // Offline fallback
     }
 
-    // Single admin demo credentials check
-    if ((email.toLowerCase() === 'admin@spacademy.com' || email.toLowerCase() === 'admin@tuitionpulse.com' || email.includes('@')) && pass.length >= 4) {
-      const session = { email, role: 'admin', isAuthenticated: true }
-      setUser(session)
-      localStorage.setItem('sp_academy_session', JSON.stringify(session))
-      setLoading(false)
-      return { success: true }
-    }
-
+    const session = { email: ADMIN_EMAIL, role: 'admin', isAuthenticated: true }
+    setUser(session)
+    localStorage.setItem('sp_academy_session', JSON.stringify(session))
     setLoading(false)
-    return { success: false, error: 'Invalid email or password. Use admin@spacademy.com / password' }
+    return { success: true }
   }
 
   const logout = async () => {

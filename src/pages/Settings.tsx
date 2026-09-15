@@ -49,7 +49,7 @@ export const Settings: React.FC = () => {
           </div>
           <div>
             <h3 className="font-bold text-sm text-white">SP Academy Admin</h3>
-            <p className="text-xs text-slate-400">{user?.email || 'admin@spacademy.com'}</p>
+            <p className="text-xs text-slate-400">{user?.email || 'spracademy18@gmail.com'}</p>
             <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
               Educator Portal Administrator
             </span>

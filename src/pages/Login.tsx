@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext'
 import { ShieldCheck, Mail, Lock, ArrowRight, Zap, CheckCircle2 } from 'lucide-react'
 
 export const Login: React.FC = () => {
-  const [email, setEmail] = useState('admin@spacademy.com')
-  const [password, setPassword] = useState('password123')
+  const [email, setEmail] = useState('spracademy18@gmail.com')
+  const [password, setPassword] = useState('Rethusna2018*')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -23,7 +23,7 @@ export const Login: React.FC = () => {
     if (res.success) {
       navigate('/')
     } else {
-      setError(res.error || 'Authentication failed')
+      setError(res.error || 'Access Denied: Invalid Admin Credentials')
     }
   }
 
@@ -43,9 +43,9 @@ export const Login: React.FC = () => {
       {/* Main Login Card */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6">
         <div className="space-y-1">
-          <h2 className="text-lg font-bold text-white">Educator Portal</h2>
+          <h2 className="text-lg font-bold text-white">Admin Portal</h2>
           <p className="text-xs text-slate-400">
-            Sign in to sync your roll call and parent notifications
+            Authorized administrator sign in
           </p>
         </div>
 
@@ -59,7 +59,7 @@ export const Login: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Teacher ID or Email
+              Admin Email ID
             </label>
             <div className="relative">
               <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
@@ -69,7 +69,7 @@ export const Login: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-500"
-                placeholder="teacher@spacademy.com"
+                placeholder="spracademy18@gmail.com"
               />
             </div>
           </div>
@@ -77,11 +77,8 @@ export const Login: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-semibold text-slate-300">
-                Password
+                Admin Password
               </label>
-              <a href="#" onClick={(e) => { e.preventDefault(); alert('Demo password is password123'); }} className="text-[11px] text-blue-400 hover:underline">
-                Forgot Password?
-              </a>
             </div>
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
