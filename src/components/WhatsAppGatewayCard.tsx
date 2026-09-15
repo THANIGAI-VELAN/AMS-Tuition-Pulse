@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { QrCode, RefreshCw, CheckCircle, AlertCircle, Smartphone } from 'lucide-react'
-import { getWhatsAppGatewayStatus, getWhatsAppQrCode, resetWhatsAppGatewaySession, GatewayStatusResponse } from '../services/notificationService'
+import { getWhatsAppGatewayStatus, getWhatsAppQrCode, resetWhatsAppGatewaySession, GatewayStatusResponse, getEffectiveGatewayUrl, DEFAULT_GATEWAY_URL } from '../services/notificationService'
 
 export const WhatsAppGatewayCard: React.FC = () => {
-  const [gatewayUrl, setGatewayUrl] = useState<string>(() => localStorage.getItem('WHATSAPP_GATEWAY_URL') || 'http://localhost:3001')
+  const [gatewayUrl, setGatewayUrl] = useState<string>(() => getEffectiveGatewayUrl())
   const [statusInfo, setStatusInfo] = useState<GatewayStatusResponse>({ status: 'DISCONNECTED' })
   const [loading, setLoading] = useState<boolean>(false)
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null)
@@ -98,13 +98,25 @@ export const WhatsAppGatewayCard: React.FC = () => {
         </div>
 
         <div className="space-y-1">
-          <label className="text-[11px] text-slate-400 font-medium">Gateway Service URL:</label>
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] text-slate-400 font-medium">Gateway Service URL:</label>
+            <button
+              type="button"
+              onClick={() => {
+                setGatewayUrl(DEFAULT_GATEWAY_URL)
+                localStorage.setItem('WHATSAPP_GATEWAY_URL', DEFAULT_GATEWAY_URL)
+              }}
+              className="text-[10px] text-emerald-400 hover:underline font-semibold"
+            >
+              Reset to Render Default
+            </button>
+          </div>
           <input
             type="text"
             value={gatewayUrl}
             onChange={handleSaveUrl}
-            placeholder="http://localhost:3001 or Render URL"
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50"
+            placeholder="https://tuition-pulse-gateway.onrender.com"
+            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50 font-mono"
           />
         </div>
       </div>

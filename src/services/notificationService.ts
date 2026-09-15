@@ -208,8 +208,20 @@ export const processPendingNotifications = async (): Promise<{ processed: number
   return { processed: sent + cancelled, sent, cancelled }
 }
 
+export const DEFAULT_GATEWAY_URL = 'https://tuition-pulse-gateway.onrender.com'
+
+export const getEffectiveGatewayUrl = (): string => {
+  if (typeof window === 'undefined') return DEFAULT_GATEWAY_URL
+  const stored = localStorage.getItem('WHATSAPP_GATEWAY_URL')
+  if (!stored || stored.includes('localhost')) {
+    localStorage.setItem('WHATSAPP_GATEWAY_URL', DEFAULT_GATEWAY_URL)
+    return DEFAULT_GATEWAY_URL
+  }
+  return stored
+}
+
 export const sendCustomWhatsAppMessage = async (studentId: string, parentPhone: string, messageText: string): Promise<{ success: boolean; messageId?: string; error?: string }> => {
-  const gatewayUrl = (typeof window !== 'undefined' && localStorage.getItem('WHATSAPP_GATEWAY_URL')) || 'http://localhost:3001'
+  const gatewayUrl = getEffectiveGatewayUrl()
   const cleanUrl = gatewayUrl.replace(/\/$/, '')
 
   // 1. Try local Zero-Cost WhatsApp Gateway (/send) first
