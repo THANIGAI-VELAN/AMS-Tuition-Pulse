@@ -45,7 +45,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     )
   }
 
-  if (!user || !user.isAuthenticated) {
+  if (!user || !user.isAuthenticated || user.email?.toLowerCase() !== 'spracademy18@gmail.com') {
     return <Navigate to="/login" replace />
   }
 

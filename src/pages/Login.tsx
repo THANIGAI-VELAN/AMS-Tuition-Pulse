@@ -15,8 +15,16 @@ export const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setSubmitting(true)
 
+    const cleanEmail = email.trim().toLowerCase()
+    
+    // Direct strict condition: Only spracademy18@gmail.com with Rethusna2018* is permitted
+    if (cleanEmail !== 'spracademy18@gmail.com' || password !== 'Rethusna2018*') {
+      setError('Access Denied: Only authorized SP Academy Admin (spracademy18@gmail.com) can access this application.')
+      return
+    }
+
+    setSubmitting(true)
     const res = await login(email, password)
     setSubmitting(false)
 
