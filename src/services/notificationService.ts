@@ -66,7 +66,7 @@ let isProcessingNotifications = false
 const inFlightNotificationIds = new Set<string>()
 
 /**
- * Client-side evaluation engine for the 10-minute re-check window.
+ * Client-side evaluation engine for the 30-second re-check window.
  * Protected by a Mutex lock and atomic state update to prevent any duplicate messaging.
  */
 export const processPendingNotifications = async (): Promise<{ processed: number; sent: number; cancelled: number }> => {
@@ -99,7 +99,7 @@ export const processPendingNotifications = async (): Promise<{ processed: number
       // Match student's current attendance record (by ID or student_id)
       const att = attendanceList.find(a => a.id === notif.attendance_id) || attendanceList.find(a => a.student_id === notif.student_id)
 
-      // Case 1: Student was marked PRESENT within 10-min window -> Cancel notification!
+      // Case 1: Student was marked PRESENT within 30-sec window -> Cancel notification!
       if (att && att.status === 'PRESENT') {
         cancelled++
         updated = true
@@ -126,7 +126,7 @@ export const processPendingNotifications = async (): Promise<{ processed: number
         continue
       }
 
-      // Case 2: 10-minute window expired and student is still ABSENT -> Dispatch WhatsApp alert!
+      // Case 2: 30-second window expired and student is still ABSENT -> Dispatch WhatsApp alert!
       const scheduledDate = new Date(notif.scheduled_at)
       if (now >= scheduledDate && (!att || att.status === 'ABSENT')) {
         // 1. Instantly lock this notification ID so no future execution can touch it
@@ -152,8 +152,7 @@ export const processPendingNotifications = async (): Promise<{ processed: number
         const student = notif.students || studentList.find(s => s.id === notif.student_id)
         const messageText = getTamilAbsenceMessage({
           studentName: student?.name || 'Student',
-          className: student?.class_name || '',
-          parentName: student?.parent_name || ''
+          className: student?.class_name || ''
         })
 
         const res = await sendCustomWhatsAppMessage(notif.student_id, notif.parent_phone, messageText)

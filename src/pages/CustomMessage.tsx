@@ -41,9 +41,9 @@ export const CustomMessage: React.FC = () => {
           if (state?.overrideMessage) {
             setMessageText(state.overrideMessage)
           } else if (state?.presetType === 'fees') {
-            setMessageText(getTamilFeesReminderMessage({ studentName: s.name, className: s.class_name, parentName: s.parent_name }))
+            setMessageText(getTamilFeesReminderMessage({ studentName: s.name, className: s.class_name }))
           } else {
-            setMessageText(getTamilAbsenceMessage({ studentName: s.name, className: s.class_name, parentName: s.parent_name }))
+            setMessageText(getTamilAbsenceMessage({ studentName: s.name, className: s.class_name }))
           }
         }
       }
@@ -57,8 +57,7 @@ export const CustomMessage: React.FC = () => {
     if (!selectedStudent) return
     const params = {
       studentName: selectedStudent.name,
-      className: selectedStudent.class_name,
-      parentName: selectedStudent.parent_name
+      className: selectedStudent.class_name
     }
 
     if (type === 'absence') {
@@ -93,7 +92,7 @@ export const CustomMessage: React.FC = () => {
     if (res.success) {
       setResult({
         success: true,
-        message: `WhatsApp message dispatched successfully to ${selectedStudent.parent_name} (${parentPhone})`
+        message: `WhatsApp message dispatched successfully to ${selectedStudent.name}'s contact (${parentPhone})`
       })
     } else {
       setResult({ success: false, message: res.error || 'Failed to dispatch message' })
@@ -131,7 +130,7 @@ export const CustomMessage: React.FC = () => {
         )}
 
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-slate-300">Select Student & Parent</label>
+          <label className="block text-xs font-semibold text-slate-300">Select Student</label>
           <select
             value={selectedStudentId}
             onChange={(e) => {
@@ -139,14 +138,14 @@ export const CustomMessage: React.FC = () => {
               setSelectedStudentId(newId)
               const s = students.find(item => item.id === newId)
               if (s) {
-                setMessageText(getTamilAbsenceMessage({ studentName: s.name, className: s.class_name, parentName: s.parent_name }))
+                setMessageText(getTamilAbsenceMessage({ studentName: s.name, className: s.class_name }))
               }
             }}
             className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500"
           >
             {students.map(s => (
               <option key={s.id} value={s.id}>
-                {s.name} ({s.class_name}) • Parent: {s.parent_name} ({s.parent_phone})
+                {s.name} ({s.class_name}) • {s.parent_phone}
               </option>
             ))}
           </select>
@@ -163,7 +162,7 @@ export const CustomMessage: React.FC = () => {
                 {selectedStudent.class_name} Standard
               </span>
             </div>
-            <p className="text-slate-400 text-[11px]">Parent: <span className="text-slate-200">{selectedStudent.parent_name}</span></p>
+            <p className="text-slate-400 text-[11px]">Primary Contact: <span className="text-slate-200 font-mono">{selectedStudent.parent_phone}</span></p>
             <p className="text-slate-400 text-[11px]">WhatsApp: <span className="text-emerald-400 font-mono font-medium">{selectedStudent.whatsapp_phone || selectedStudent.parent_phone}</span></p>
           </div>
         )}

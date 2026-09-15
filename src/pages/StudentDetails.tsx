@@ -92,7 +92,7 @@ export const StudentDetails: React.FC = () => {
     const rawPhone = student.whatsapp_phone || student.parent_phone
     const cleanPhone = rawPhone.replace(/[^0-9]/g, '')
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone
-    const msg = `வணக்கம் ${student.parent_name || ''} அவர்களே,
+    const msg = `வணக்கம் பெற்றோர்களே,
 
 SP Academy டியூஷன் மையத்திலிருந்து மாணவர் *${student.name}* (${student.class_name}) தொடர்பாக தொடர்பு கொள்கிறோம்.
 
@@ -109,7 +109,6 @@ SP Academy டியூஷன் மையத்திலிருந்து �
       reminderMsg = getTamilMultiMonthFeeMessage({
         studentName: student.name,
         className: student.class_name,
-        parentName: student.parent_name,
         unpaidMonthsText: `${unpaidMonthsListStr} (${unpaidRecords.length} மாதங்கள்)`,
         totalAmountDue: totalBalanceDue
       })
@@ -117,7 +116,6 @@ SP Academy டியூஷன் மையத்திலிருந்து �
       reminderMsg = getTamilFeesReminderMessage({
         studentName: student.name,
         className: student.class_name,
-        parentName: student.parent_name,
         amount: student.monthly_fee || 1500
       })
     }
@@ -344,11 +342,6 @@ SP Academy டியூஷன் மையத்திலிருந்து �
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800/80">
               <span className="text-slate-400">Class Batch:</span>
               <span className="font-bold text-white">{student.class_name} Standard</span>
-            </div>
-
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800/80">
-              <span className="text-slate-400">Parent Name:</span>
-              <span className="font-bold text-white">{student.parent_name}</span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800/80">

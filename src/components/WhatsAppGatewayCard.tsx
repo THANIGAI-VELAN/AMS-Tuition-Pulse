@@ -132,7 +132,7 @@ export const WhatsAppGatewayCard: React.FC = () => {
         <div className="space-y-2">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-medium flex items-center space-x-2">
             <CheckCircle className="w-4 h-4 flex-shrink-0" />
-            <span>Admin WhatsApp number is paired! Absent alerts will send automatically after 10 mins.</span>
+            <span>Admin WhatsApp number is paired! Absent alerts will send automatically after 30 seconds.</span>
           </div>
 
           <button

@@ -31,14 +31,13 @@ export const StudentsDirectory: React.FC = () => {
   const filtered = students.filter(s => {
     const matchesClass = selectedClass === 'All' || s.class_name === selectedClass
     const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.parent_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.parent_phone.includes(searchQuery)
     return matchesClass && matchesSearch
   })
 
   const handleOpenWhatsApp = (student: Student) => {
     const phone = student.whatsapp_phone || student.parent_phone
-    const msg = `வணக்கம் ${student.parent_name || ''} அவர்களே,
+    const msg = `வணக்கம் பெற்றோர்களே,
 
 SP Academy டியூஷன் மையத்திலிருந்து மாணவர் *${student.name}* (${student.class_name}) தொடர்பாக தொடர்பு கொள்கிறோம்.
 
@@ -104,7 +103,7 @@ SP Academy டியூஷன் மையத்திலிருந்து �
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search student, parent, or phone..."
+              placeholder="Search student or phone number..."
               className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -204,9 +203,8 @@ SP Academy டியூஷன் மையத்திலிருந்து �
 
                 <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
                   <div>
-                    <span className="text-slate-500 text-[11px]">Parent: </span>
-                    <span className="text-slate-300 font-medium">{s.parent_name}</span>
-                    <span className="text-slate-400 text-[11px] block">{s.parent_phone}</span>
+                    <span className="text-slate-500 text-[11px]">Phone: </span>
+                    <span className="text-slate-300 font-mono font-medium">{s.parent_phone}</span>
                   </div>
 
                   <div className="flex items-center space-x-2">

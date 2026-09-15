@@ -16,17 +16,17 @@ import { CustomMessage } from './pages/CustomMessage'
 import { Settings } from './pages/Settings'
 
 /**
- * Background runner that automatically processes pending 10-minute notifications
+ * Background runner that automatically processes pending 30-second notifications
  */
 const NotificationDaemon: React.FC = () => {
   useEffect(() => {
     // Process on launch
     processPendingNotifications()
 
-    // Safe 30-second background polling
+    // Active 3-second background polling for responsive 30-second automated dispatch
     const interval = setInterval(() => {
       processPendingNotifications()
-    }, 30000)
+    }, 3000)
 
     return () => clearInterval(interval)
   }, [])

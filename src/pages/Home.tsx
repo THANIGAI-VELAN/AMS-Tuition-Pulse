@@ -147,7 +147,7 @@ export const Home: React.FC = () => {
           <div className="space-y-1">
             <p className="font-bold text-white">Automated WhatsApp Broadcast</p>
             <p className="text-[11px] text-blue-200/80 leading-relaxed">
-              Mark attendance & submit. 10 minutes after submission, parents of absent students are automatically notified.
+              Mark attendance & submit. 30 seconds after submission, parents of absent students are automatically notified.
             </p>
           </div>
         </div>
@@ -290,7 +290,7 @@ export const Home: React.FC = () => {
                 <div className="flex items-center space-x-2 text-xs mt-0.5">
                   <span className="text-emerald-400 font-semibold">{sentCount} Sent</span>
                   <span className="text-slate-600">•</span>
-                  <span className="text-amber-400 font-semibold">{pendingCount} Pending (10m window)</span>
+                  <span className="text-amber-400 font-semibold">{pendingCount} Pending (30s window)</span>
                 </div>
               </div>
             </div>

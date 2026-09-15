@@ -11,7 +11,6 @@ export const StudentForm: React.FC = () => {
 
   const [name, setName] = useState('')
   const [className, setClassName] = useState<ClassName>('12th')
-  const [parentName, setParentName] = useState('')
   const [parentPhone, setParentPhone] = useState('')
   const [whatsappPhone, setWhatsappPhone] = useState('')
   const [school, setSchool] = useState('')
@@ -27,7 +26,6 @@ export const StudentForm: React.FC = () => {
         if (s) {
           setName(s.name)
           setClassName(s.class_name)
-          setParentName(s.parent_name)
           setParentPhone(s.parent_phone)
           setWhatsappPhone(s.whatsapp_phone)
           setSchool(s.school || '')
@@ -47,7 +45,6 @@ export const StudentForm: React.FC = () => {
     const payload = {
       name,
       class_name: className,
-      parent_name: parentName,
       parent_phone: parentPhone,
       whatsapp_phone: whatsappPhone || parentPhone,
       school,
@@ -134,17 +131,7 @@ export const StudentForm: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-slate-300">Parent / Guardian Name</label>
-          <input
-            type="text"
-            required
-            value={parentName}
-            onChange={(e) => setParentName(e.target.value)}
-            placeholder="e.g. S. Sundaram"
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
-          />
-        </div>
+
 
         <div className="space-y-1.5">
           <label className="block text-xs font-semibold text-slate-300">Parent Contact Phone</label>

@@ -4,7 +4,7 @@ import { fetchStudents, getCachedStudents } from '../services/studentService'
 import { fetchAttendanceByClassAndDate, submitAttendance, getCachedAttendance } from '../services/attendanceService'
 import { Student, ClassName, AttendanceStatus } from '../types/database.types'
 import { ArrowLeft, Search, CheckCircle2, Info, ShieldCheck, Check, X, AlertCircle, Clock } from 'lucide-react'
-import { format, addMinutes } from 'date-fns'
+import { format, addSeconds } from 'date-fns'
 
 import { getCachedNotifications } from '../services/notificationService'
 import { NotificationRecord } from '../types/database.types'
@@ -95,7 +95,7 @@ export const ClassAttendance: React.FC = () => {
 
   const filteredStudents = students.filter(s =>
     s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.parent_name.toLowerCase().includes(searchQuery.toLowerCase())
+    s.parent_phone.includes(searchQuery)
   )
 
   const handleConfirmSubmit = async () => {
@@ -125,7 +125,7 @@ export const ClassAttendance: React.FC = () => {
     })
   }
 
-  const dispatchTimeString = format(addMinutes(new Date(), 10), 'hh:mm a')
+  const dispatchTimeString = format(addSeconds(new Date(), 30), 'hh:mm:ss a')
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-28 max-w-md mx-auto relative flex flex-col justify-between">
@@ -252,11 +252,11 @@ export const ClassAttendance: React.FC = () => {
                         )}
                         {pendingNotif && !sentNotif && (
                           <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            10m Alert Pending
+                            30s Alert Pending
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-400">Parent: {student.parent_name}</p>
+                      <p className="text-[11px] text-slate-400">Phone: {student.parent_phone}</p>
                     </div>
                   </div>
 
@@ -355,10 +355,10 @@ export const ClassAttendance: React.FC = () => {
             <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 space-y-1">
               <div className="font-bold flex items-center space-x-1 text-amber-200">
                 <Clock className="w-4 h-4 text-amber-400" />
-                <span>10-Minute Notification Window</span>
+                <span>30-Second Notification Window</span>
               </div>
               <p className="text-[11px] text-amber-300/80 leading-relaxed">
-                Parents of absent students will receive an automated WhatsApp notification at <strong>{dispatchTimeString}</strong>. If a student arrives late, update attendance before <strong>{dispatchTimeString}</strong> to automatically cancel dispatch.
+                Parents of absent students will receive an automated WhatsApp notification after 30 seconds (at <strong>{dispatchTimeString}</strong>). If a student arrives late, update attendance before then to automatically cancel dispatch.
               </p>
             </div>
 

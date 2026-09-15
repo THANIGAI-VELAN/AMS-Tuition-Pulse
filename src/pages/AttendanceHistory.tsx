@@ -149,7 +149,7 @@ export const AttendanceHistory: React.FC = () => {
                           )}
                           {notif?.status === 'Pending' && (
                             <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                              10m Alert Pending
+                              30s Alert Pending
                             </span>
                           )}
                           {notif?.status === 'Cancelled' && (
@@ -158,7 +158,7 @@ export const AttendanceHistory: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-400">Parent: {student.parent_name}</p>
+                        <p className="text-[11px] text-slate-400">Phone: {student.parent_phone}</p>
                       </div>
                     </div>
 

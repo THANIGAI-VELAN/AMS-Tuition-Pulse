@@ -6,7 +6,7 @@
 -- 1. EXTENSIONS & SETUP
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Enable pg_cron for background 10-minute scheduled processing (if available in Supabase project)
+-- Enable pg_cron for background 30-second scheduled processing (if available in Supabase project)
 -- CREATE EXTENSION IF NOT EXISTS "pg_cron";
 
 -- 2. TABLES DEFINITION
@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS public.students (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     class_name TEXT NOT NULL CHECK (class_name IN ('10th', '11th', '12th')),
-    parent_name TEXT NOT NULL,
     parent_phone TEXT NOT NULL,
     whatsapp_phone TEXT NOT NULL,
     school TEXT,
@@ -24,6 +23,9 @@ CREATE TABLE IF NOT EXISTS public.students (
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
+
+-- Migration support: Drop parent_name if it exists from older schema versions
+ALTER TABLE public.students DROP COLUMN IF EXISTS parent_name;
 
 -- Table: attendance
 CREATE TABLE IF NOT EXISTS public.attendance (

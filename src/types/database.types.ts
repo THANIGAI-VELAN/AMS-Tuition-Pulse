@@ -7,7 +7,6 @@ export interface Student {
   id: string
   name: string
   class_name: ClassName
-  parent_name: string
   parent_phone: string
   whatsapp_phone: string
   school?: string

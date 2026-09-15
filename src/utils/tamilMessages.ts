@@ -40,7 +40,7 @@ export const createWhatsAppChatUrl = (phone: string, message: string): string =>
  * 1. Absence Alert in Tamil
  */
 export const getTamilAbsenceMessage = ({ studentName, className, dateStr, parentName }: StudentMessageParams): string => {
-  const salutation = parentName ? `வணக்கம் ${parentName} அவர்களே,` : `வணக்கம்,`
+  const salutation = parentName ? `வணக்கம் ${parentName} அவர்களே,` : `வணக்கம் பெற்றோர்களே,`
   const date = dateStr || new Date().toLocaleDateString('ta-IN', { day: '2-digit', month: 'short', year: 'numeric' })
   const standard = className ? ` (${className} வகுப்பு)` : ''
 
@@ -61,7 +61,7 @@ export const getTamilAbsenceMessage = ({ studentName, className, dateStr, parent
  * 2. Monthly Fee Reminder in Tamil
  */
 export const getTamilFeesReminderMessage = ({ studentName, className, month, amount, parentName }: StudentMessageParams): string => {
-  const salutation = parentName ? `வணக்கம் ${parentName} அவர்களே,` : `வணக்கம்,`
+  const salutation = parentName ? `வணக்கம் ${parentName} அவர்களே,` : `வணக்கம் பெற்றோர்களே,`
   const feeMonth = month || new Date().toLocaleString('ta-IN', { month: 'long' })
   const feeAmount = amount ? `ரூ. ${amount}` : 'டியூஷன் கட்டணம்'
 
@@ -90,7 +90,7 @@ export const getTamilMultiMonthFeeMessage = ({
   unpaidMonthsText: string
   totalAmountDue: number
 }): string => {
-  const salutation = parentName ? `வணக்கம் ${parentName} அவர்களே,` : `வணக்கம்,`
+  const salutation = parentName ? `வணக்கம் ${parentName} அவர்களே,` : `வணக்கம் பெற்றோர்களே,`
 
   return `${salutation}
 
@@ -110,7 +110,7 @@ export const getTamilMultiMonthFeeMessage = ({
  * 3. Test Marks & Performance Report in Tamil
  */
 export const getTamilMarksReportMessage = ({ studentName, className, subject, marks, totalMarks, parentName }: StudentMessageParams): string => {
-  const salutation = parentName ? `வணக்கம் ${parentName} அவர்களே,` : `வணக்கம்,`
+  const salutation = parentName ? `வணக்கம் ${parentName} அவர்களே,` : `வணக்கம் பெற்றோர்களே,`
   const sub = subject || 'அனைத்து பாடங்கள்'
   const score = marks !== undefined ? marks : '--'
   const maxScore = totalMarks || '100'
@@ -134,7 +134,7 @@ export const getTamilMarksReportMessage = ({ studentName, className, subject, ma
  * 4. Holiday / General Notice in Tamil
  */
 export const getTamilGeneralNoticeMessage = ({ noticeTitle, noticeDetails, parentName }: StudentMessageParams): string => {
-  const salutation = parentName ? `வணக்கம் ${parentName} அவர்களே,` : `வணக்கம்,`
+  const salutation = parentName ? `வணக்கம் ${parentName} அவர்களே,` : `வணக்கம் பெற்றோர்களே,`
   const title = noticeTitle || 'பொது அறிவிப்பு'
   const details = noticeDetails || 'நாளை டியூஷன் வகுப்புகளுக்கு விடுமுறை.'
 

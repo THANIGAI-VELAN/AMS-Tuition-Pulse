@@ -77,7 +77,6 @@ export const createStudent = async (studentData: Omit<Student, 'id' | 'created_a
     const supabasePayload = {
       name: studentData.name,
       class_name: studentData.class_name,
-      parent_name: studentData.parent_name,
       parent_phone: studentData.parent_phone,
       whatsapp_phone: studentData.whatsapp_phone || studentData.parent_phone,
       school: studentData.school || '',

@@ -102,7 +102,7 @@ export const Login: React.FC = () => {
             <div>
               <p className="font-semibold text-blue-200">Instant Parent Broadcasts</p>
               <p className="text-[11px] text-blue-300/80 mt-0.5">
-                Automated 10-minute re-check window active for 10th, 11th & 12th standards.
+                Automated 30-second re-check window active for 10th, 11th & 12th standards.
               </p>
             </div>
           </div>

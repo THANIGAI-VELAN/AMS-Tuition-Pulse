@@ -28,7 +28,7 @@ export const getCachedAttendance = (): AttendanceRecord[] => {
 export const submitAttendance = async (payload: AttendanceSubmissionPayload): Promise<AttendanceSubmissionResult> => {
   const { className, attendanceDate, records, markedByUserId } = payload
   const now = new Date()
-  const scheduledTime = new Date(now.getTime() + 10 * 60 * 1000)
+  const scheduledTime = new Date(now.getTime() + 30 * 1000) // 30-second automated dispatch window
   const scheduledAtIso = scheduledTime.toISOString()
 
   const newAttendanceRecords: AttendanceRecord[] = []
@@ -51,7 +51,7 @@ export const submitAttendance = async (payload: AttendanceSubmissionPayload): Pr
     }
     newAttendanceRecords.push(attRecord)
 
-    // If ABSENT -> Create Pending notification with 10-min window
+    // If ABSENT -> Create Pending notification with 30-sec window
     if (item.status === 'ABSENT' && student) {
       const notifId = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
       const notifRecord: NotificationRecord = {
@@ -91,7 +91,7 @@ export const submitAttendance = async (payload: AttendanceSubmissionPayload): Pr
           updated_at: now.toISOString()
         }
       } else if (matchingRecord.status === 'ABSENT') {
-        // Cancel old pending alert to replace with fresh 10-min window
+        // Cancel old pending alert to replace with fresh 30-sec window
         return {
           ...n,
           status: 'Cancelled' as const,

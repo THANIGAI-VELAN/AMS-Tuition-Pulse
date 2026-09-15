@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { CheckCircle2, Clock, Send, Home, Bell, ChevronRight, ShieldAlert } from 'lucide-react'
 import { format, differenceInSeconds } from 'date-fns'
+import { processPendingNotifications } from '../services/notificationService'
 
 export const AttendanceSuccess: React.FC = () => {
   const location = useLocation()
@@ -19,15 +20,19 @@ export const AttendanceSuccess: React.FC = () => {
   const presentCount = state?.presentCount ?? 26
   const absentCount = state?.absentCount ?? 2
   const absentStudents = state?.absentStudents || ['Priya S', 'Harini M']
-  const scheduledAtIso = state?.scheduledAtIso || new Date(Date.now() + 600000).toISOString()
+  const scheduledAtIso = state?.scheduledAtIso || new Date(Date.now() + 30000).toISOString()
 
-  const [secondsLeft, setSecondsLeft] = useState<number>(600)
+  const [secondsLeft, setSecondsLeft] = useState<number>(30)
 
   useEffect(() => {
     const target = new Date(scheduledAtIso)
     const update = () => {
       const diff = differenceInSeconds(target, new Date())
-      setSecondsLeft(diff > 0 ? diff : 0)
+      const remaining = diff > 0 ? diff : 0
+      setSecondsLeft(remaining)
+      if (remaining === 0) {
+        processPendingNotifications()
+      }
     }
     update()
     const timer = setInterval(update, 1000)
@@ -80,7 +85,7 @@ export const AttendanceSuccess: React.FC = () => {
                 <Clock className="w-4.5 h-4.5" />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-white">10-Min Dispatch Window</h3>
+                <h3 className="font-bold text-sm text-white">30-Sec Dispatch Window</h3>
                 <p className="text-[11px] text-slate-400">Automatic Cancel Window</p>
               </div>
             </div>
@@ -94,7 +99,7 @@ export const AttendanceSuccess: React.FC = () => {
           <div className="space-y-2 text-xs border-t border-slate-800 pt-3">
             <div className="flex items-center justify-between text-slate-400 text-[11px]">
               <span>WhatsApp notification scheduled for:</span>
-              <span className="font-bold text-slate-200">{format(new Date(scheduledAtIso), 'hh:mm a')}</span>
+              <span className="font-bold text-slate-200">{format(new Date(scheduledAtIso), 'hh:mm:ss a')}</span>
             </div>
 
             {absentCount > 0 ? (
@@ -121,7 +126,7 @@ export const AttendanceSuccess: React.FC = () => {
           <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 flex items-start space-x-2">
             <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              Need to make a correction? Change status to <strong>Present</strong> in History while 10-min window is active to automatically cancel WhatsApp dispatch.
+              Need to make a correction? Change status to <strong>Present</strong> in History while 30-sec window is active to automatically cancel WhatsApp dispatch.
             </p>
           </div>
         </div>
