@@ -313,5 +313,27 @@ export const resetWhatsAppGatewaySession = async (gatewayUrl: string): Promise<{
   return { success: false, message: 'Gateway server unreachable' }
 }
 
-
-
+export const getWhatsAppPairingCode = async (
+  gatewayUrl: string,
+  phone: string
+): Promise<{ success?: boolean; pairingCode?: string; message?: string; error?: string; status?: string }> => {
+  try {
+    const cleanUrl = gatewayUrl.replace(/\/$/, '')
+    const res = await withTimeout(
+      fetch(`${cleanUrl}/pair-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      }),
+      8000
+    )
+    if (res.ok) {
+      return await res.json()
+    } else {
+      const data = await res.json().catch(() => ({}))
+      return { success: false, error: data.error || 'Failed to request pairing code' }
+    }
+  } catch {
+    return { success: false, error: 'Gateway server unreachable. Please make sure the gateway is running.' }
+  }
+}

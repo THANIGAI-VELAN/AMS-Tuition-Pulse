@@ -1,11 +1,38 @@
 import React, { useState, useEffect } from 'react'
-import { QrCode, RefreshCw, CheckCircle, AlertCircle, Smartphone } from 'lucide-react'
-import { getWhatsAppGatewayStatus, getWhatsAppQrCode, resetWhatsAppGatewaySession, GatewayStatusResponse, getEffectiveGatewayUrl, DEFAULT_GATEWAY_URL } from '../services/notificationService'
+import {
+  QrCode,
+  RefreshCw,
+  CheckCircle,
+  AlertCircle,
+  Smartphone,
+  KeyRound,
+  Copy,
+  Check,
+  ExternalLink,
+  Phone
+} from 'lucide-react'
+import {
+  getWhatsAppGatewayStatus,
+  getWhatsAppQrCode,
+  getWhatsAppPairingCode,
+  resetWhatsAppGatewaySession,
+  GatewayStatusResponse,
+  getEffectiveGatewayUrl,
+  DEFAULT_GATEWAY_URL
+} from '../services/notificationService'
 
 export const WhatsAppGatewayCard: React.FC = () => {
   const [gatewayUrl, setGatewayUrl] = useState<string>(() => getEffectiveGatewayUrl())
   const [statusInfo, setStatusInfo] = useState<GatewayStatusResponse>({ status: 'DISCONNECTED' })
   const [loading, setLoading] = useState<boolean>(false)
+  const [activeTab, setActiveTab] = useState<'pairing' | 'qr'>('pairing')
+  
+  // Pairing Code States
+  const [adminPhone, setAdminPhone] = useState<string>(() => localStorage.getItem('ADMIN_WA_PHONE') || '')
+  const [pairingCode, setPairingCode] = useState<string | null>(null)
+  const [copied, setCopied] = useState<boolean>(false)
+
+  // QR Code States
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null)
   const [showQrModal, setShowQrModal] = useState<boolean>(false)
   const [message, setMessage] = useState<string>('')
@@ -27,9 +54,45 @@ export const WhatsAppGatewayCard: React.FC = () => {
     localStorage.setItem('WHATSAPP_GATEWAY_URL', val)
   }
 
+  // Handle Pairing Code Generation (Single-Device on Phone)
+  const handleGeneratePairingCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!adminPhone.trim()) {
+      setMessage('Please enter the Admin WhatsApp phone number.')
+      return
+    }
+
+    localStorage.setItem('ADMIN_WA_PHONE', adminPhone.trim())
+    setLoading(true)
+    setMessage('Requesting 8-digit pairing code from WhatsApp...')
+    setPairingCode(null)
+
+    const res = await getWhatsAppPairingCode(gatewayUrl, adminPhone.trim())
+    setLoading(false)
+
+    if (res.pairingCode) {
+      setPairingCode(res.pairingCode)
+      setMessage('')
+    } else if (res.status === 'CONNECTED') {
+      checkStatus()
+      setMessage('WhatsApp is ALREADY connected!')
+    } else {
+      setMessage(res.error || res.message || 'Failed to generate pairing code. Ensure gateway server is online.')
+    }
+  }
+
+  const handleCopyCode = async () => {
+    if (!pairingCode) return
+    const plainCode = pairingCode.replace(/[^a-zA-Z0-9]/g, '')
+    await navigator.clipboard.writeText(plainCode)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 3000)
+  }
+
+  // Handle QR Code Fetch (Desktop / 2-Device Mode)
   const handleFetchQr = async () => {
     setLoading(true)
-    setMessage('Connecting to WhatsApp Gateway...')
+    setMessage('Connecting to WhatsApp Gateway for QR...')
     const res = await getWhatsAppQrCode(gatewayUrl)
     setLoading(false)
 
@@ -45,19 +108,21 @@ export const WhatsAppGatewayCard: React.FC = () => {
     }
   }
 
-
   const handleResetSession = async () => {
     setLoading(true)
-    setMessage('Resetting session & generating fresh QR code...')
+    setMessage('Resetting session & clearing auth keys...')
+    setPairingCode(null)
     await resetWhatsAppGatewaySession(gatewayUrl)
     setLoading(false)
+    setMessage('Session cleared. You can now pair a new phone number.')
     setTimeout(() => {
-      handleFetchQr()
-    }, 2000)
+      checkStatus()
+    }, 1500)
   }
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
@@ -79,6 +144,7 @@ export const WhatsAppGatewayCard: React.FC = () => {
         </button>
       </div>
 
+      {/* Gateway Status Box */}
       <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 text-xs space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-slate-400">Gateway Status:</span>
@@ -121,30 +187,148 @@ export const WhatsAppGatewayCard: React.FC = () => {
         </div>
       </div>
 
+      {/* Connection Mode Selection */}
       {statusInfo.status !== 'CONNECTED' ? (
-        <div className="space-y-2">
-          <button
-            onClick={handleFetchQr}
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20 transition-all"
-          >
-            <QrCode className="w-4 h-4" />
-            <span>{loading ? 'Generating QR Code...' : 'Scan QR Code to Link Admin WhatsApp'}</span>
-          </button>
-          
+        <div className="space-y-3">
+          {/* Tabs */}
+          <div className="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-2xl border border-slate-800 text-xs">
+            <button
+              type="button"
+              onClick={() => setActiveTab('pairing')}
+              className={`py-2 px-3 rounded-xl font-bold flex items-center justify-center space-x-1.5 transition-all ${
+                activeTab === 'pairing'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span>Same Phone (Code)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('qr')}
+              className={`py-2 px-3 rounded-xl font-bold flex items-center justify-center space-x-1.5 transition-all ${
+                activeTab === 'qr'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>From PC (Scan QR)</span>
+            </button>
+          </div>
+
+          {/* Tab 1: Same Phone Pairing Code */}
+          {activeTab === 'pairing' && (
+            <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-300 flex items-center space-x-1.5">
+                  <Phone className="w-3 h-3 text-emerald-400" />
+                  <span>Enter Admin WhatsApp Number</span>
+                </label>
+                <p className="text-[10px] text-slate-400">
+                  No camera or second device required. Generate an 8-character code and paste it inside your WhatsApp.
+                </p>
+              </div>
+
+              <form onSubmit={handleGeneratePairingCode} className="space-y-2">
+                <input
+                  type="tel"
+                  value={adminPhone}
+                  onChange={(e) => setAdminPhone(e.target.value)}
+                  placeholder="e.g. 9876543210 or 919876543210"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+
+                <button
+                  type="submit"
+                  disabled={loading || !adminPhone.trim()}
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20 transition-all"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>{loading ? 'Requesting Code...' : 'Get 8-Digit Pairing Code'}</span>
+                </button>
+              </form>
+
+              {/* Pairing Code Display Box */}
+              {pairingCode && (
+                <div className="mt-3 p-3.5 bg-emerald-950/30 border border-emerald-500/30 rounded-2xl space-y-3 animate-in fade-in duration-300">
+                  <div className="text-center space-y-1">
+                    <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase">Your Pairing Code</span>
+                    <div className="text-2xl font-mono font-black text-white tracking-widest bg-slate-900/90 py-2.5 px-4 rounded-xl border border-emerald-500/40 select-all">
+                      {pairingCode}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyCode}
+                      className="w-full bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold py-2 rounded-xl text-[11px] flex items-center justify-center space-x-1.5 transition-all"
+                    >
+                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copied ? 'Copied!' : 'Copy Code'}</span>
+                    </button>
+
+                    <a
+                      href="whatsapp://app"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-[11px] flex items-center justify-center space-x-1.5 transition-all shadow-sm"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open WhatsApp</span>
+                    </a>
+                  </div>
+
+                  {/* Step by step guide */}
+                  <div className="p-2.5 bg-slate-900/60 rounded-xl border border-slate-800/80 text-[10px] text-slate-300 space-y-1">
+                    <p className="font-bold text-emerald-400">📲 3 Steps on this phone:</p>
+                    <ol className="list-decimal list-inside space-y-0.5 text-slate-400">
+                      <li>Tap <strong className="text-white">Copy Code</strong> above</li>
+                      <li>Open <strong className="text-white">WhatsApp &gt; Linked Devices &gt; Link a Device</strong></li>
+                      <li>Tap <strong className="text-emerald-300">"Link with phone number instead"</strong> &amp; paste code</li>
+                    </ol>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 2: Desktop QR Code Mode */}
+          {activeTab === 'qr' && (
+            <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                If you are using this app on a laptop, tablet, or desktop monitor, generate a QR code to scan with your phone's camera.
+              </p>
+
+              <button
+                type="button"
+                onClick={handleFetchQr}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20 transition-all"
+              >
+                <QrCode className="w-4 h-4" />
+                <span>{loading ? 'Generating QR...' : 'Show QR Code on Screen'}</span>
+              </button>
+            </div>
+          )}
+
+          {/* Reset / Unlink Button */}
           <button
             onClick={handleResetSession}
             disabled={loading}
-            className="w-full bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold py-2 rounded-xl text-[11px] flex items-center justify-center space-x-1 transition-all"
+            className="w-full bg-slate-800/60 hover:bg-slate-800 text-amber-400/80 hover:text-amber-400 font-medium py-2 rounded-xl text-[11px] flex items-center justify-center space-x-1 transition-all border border-slate-800"
           >
-            <span>Unlinked Phone on Mobile? Reset Session & Get New QR</span>
+            <span>Need a Fresh Pairing Session? Reset Gateway</span>
           </button>
         </div>
       ) : (
+        /* Connected State */
         <div className="space-y-2">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-medium flex items-center space-x-2">
             <CheckCircle className="w-4 h-4 flex-shrink-0" />
-            <span>Admin WhatsApp number is paired! Absent alerts will send automatically after 30 seconds.</span>
+            <span>Admin WhatsApp number is paired! Automated absent alerts will dispatch after 30s.</span>
           </div>
 
           <button
@@ -159,14 +343,13 @@ export const WhatsAppGatewayCard: React.FC = () => {
 
       {message && <p className="text-[11px] text-amber-400 text-center font-medium">{message}</p>}
 
-
-      {/* QR Code Scanner Modal */}
+      {/* QR Code Scanner Modal (Desktop flow) */}
       {showQrModal && qrCodeDataUrl && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
-            <h3 className="font-bold text-sm text-white">Link Admin WhatsApp</h3>
+            <h3 className="font-bold text-sm text-white">Scan with WhatsApp Camera</h3>
             <p className="text-xs text-slate-400">
-              Open WhatsApp on Admin Phone → Linked Devices → Link a Device → Scan QR below:
+              WhatsApp on Phone → Linked Devices → Link a Device → Scan QR below:
             </p>
 
             <div className="bg-white p-3 rounded-2xl inline-block shadow-inner">

@@ -194,6 +194,37 @@ app.post('/reset', (req, res) => {
   res.json({ success: true, message: 'Session reset. Generating fresh QR code...' })
 })
 
+// 3.5 Pairing Code Endpoint (For Single-Device Linking on Mobile)
+app.post('/pair-code', async (req, res) => {
+  const { phone } = req.body
+  if (!phone) {
+    return res.status(400).json({ error: 'Phone number is required' })
+  }
+
+  let cleanPhone = phone.replace(/[^0-9]/g, '')
+  if (cleanPhone.length === 10) {
+    cleanPhone = `91${cleanPhone}`
+  }
+
+  if (connectionStatus === 'CONNECTED') {
+    return res.status(200).json({ status: 'CONNECTED', message: 'WhatsApp is already connected!' })
+  }
+
+  if (!socket) {
+    return res.status(503).json({ error: 'Gateway socket is still initializing, please retry in 2 seconds.' })
+  }
+
+  try {
+    const code = await socket.requestPairingCode(cleanPhone)
+    const formattedCode = code?.match(/.{1,4}/g)?.join('-') || code
+    console.log(`[GATEWAY] Pairing code generated for +${cleanPhone}: ${formattedCode}`)
+    res.json({ success: true, pairingCode: formattedCode })
+  } catch (err) {
+    console.error('[GATEWAY] Error generating pairing code:', err)
+    res.status(500).json({ error: err.message || 'Failed to generate pairing code from WhatsApp' })
+  }
+})
+
 const sentMessageDeduplication = new Map()
 
 // 4. Send Message Endpoint
