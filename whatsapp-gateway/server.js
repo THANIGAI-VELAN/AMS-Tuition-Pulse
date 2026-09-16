@@ -74,7 +74,7 @@ async function connectToWhatsApp() {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, logger)
       },
-      browser: Browsers.windows('Desktop'),
+      browser: ['Ubuntu', 'Chrome', '20.0.04'],
       printQRInTerminal: false,
       connectTimeoutMs: 60000,
       keepAliveIntervalMs: 25000,
@@ -201,7 +201,13 @@ app.post('/pair-code', async (req, res) => {
     return res.status(400).json({ error: 'Phone number is required' })
   }
 
-  let cleanPhone = phone.replace(/[^0-9]/g, '')
+  // Normalize phone number (strip all non-digits and leading zeros)
+  let cleanPhone = String(phone).replace(/[^0-9]/g, '')
+  while (cleanPhone.startsWith('0')) {
+    cleanPhone = cleanPhone.substring(1)
+  }
+
+  // Default to India country code (91) if 10 digits
   if (cleanPhone.length === 10) {
     cleanPhone = `91${cleanPhone}`
   }
@@ -211,17 +217,27 @@ app.post('/pair-code', async (req, res) => {
   }
 
   if (!socket) {
-    return res.status(503).json({ error: 'Gateway socket is still initializing, please retry in 2 seconds.' })
+    return res.status(503).json({ error: 'Gateway socket is initializing, please retry in 2 seconds.' })
   }
 
   try {
+    // If auth state is already registered, socket cannot request pairing code without reset
+    if (socket.authState?.creds?.registered) {
+      console.log('[GATEWAY] Existing session is registered. Resetting session for fresh pairing code...')
+      clearAuthSession()
+      await connectToWhatsApp()
+      await new Promise(r => setTimeout(r, 2000))
+    }
+
     const code = await socket.requestPairingCode(cleanPhone)
     const formattedCode = code?.match(/.{1,4}/g)?.join('-') || code
-    console.log(`[GATEWAY] Pairing code generated for +${cleanPhone}: ${formattedCode}`)
-    res.json({ success: true, pairingCode: formattedCode })
+    console.log(`[GATEWAY] Pairing code generated successfully for +${cleanPhone}: ${formattedCode}`)
+    res.json({ success: true, pairingCode: formattedCode, rawCode: code, phone: cleanPhone })
   } catch (err) {
     console.error('[GATEWAY] Error generating pairing code:', err)
-    res.status(500).json({ error: err.message || 'Failed to generate pairing code from WhatsApp' })
+    res.status(500).json({
+      error: err.message || 'Failed to generate pairing code from WhatsApp. Try resetting the session first.'
+    })
   }
 })
 
