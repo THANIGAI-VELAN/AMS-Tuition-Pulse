@@ -6,7 +6,13 @@ import { Student, ClassName, AttendanceStatus } from '../types/database.types'
 import { ArrowLeft, Search, CheckCircle2, Info, ShieldCheck, Check, X, AlertCircle, Clock } from 'lucide-react'
 import { format, addSeconds } from 'date-fns'
 
-import { getCachedNotifications } from '../services/notificationService'
+import {
+  getCachedNotifications,
+  getLatestCachedGatewayStatus,
+  getWhatsAppGatewayStatus,
+  getEffectiveGatewayUrl,
+  GatewayStatusResponse
+} from '../services/notificationService'
 import { NotificationRecord } from '../types/database.types'
 
 export const ClassAttendance: React.FC = () => {
@@ -33,6 +39,7 @@ export const ClassAttendance: React.FC = () => {
   const [loading, setLoading] = useState(() => getCachedStudents(classVal).length === 0)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [gwStatus, setGwStatus] = useState<GatewayStatusResponse>(() => getLatestCachedGatewayStatus())
 
   // 2. Background Revalidate & Real-Time Notification Listeners
   useEffect(() => {
@@ -40,14 +47,16 @@ export const ClassAttendance: React.FC = () => {
 
     const loadClassData = async () => {
       try {
-        const [allStudents, existing] = await Promise.all([
+        const [allStudents, existing, status] = await Promise.all([
           fetchStudents(classVal),
-          fetchAttendanceByClassAndDate(classVal, todayStr)
+          fetchAttendanceByClassAndDate(classVal, todayStr),
+          getWhatsAppGatewayStatus(getEffectiveGatewayUrl())
         ])
 
         if (isMounted) {
           setStudents(allStudents)
           setNotifications(getCachedNotifications())
+          setGwStatus(status)
           const map: Record<string, AttendanceStatus> = {}
           allStudents.forEach(s => {
             const found = existing.find(e => e.student_id === s.id)
@@ -65,12 +74,21 @@ export const ClassAttendance: React.FC = () => {
       if (isMounted) setNotifications(getCachedNotifications())
     }
 
+    const handleGwStatusUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<GatewayStatusResponse>
+      if (customEvent.detail && isMounted) {
+        setGwStatus(customEvent.detail)
+      }
+    }
+
     loadClassData()
     window.addEventListener('sp_notifications_updated', handleNotifUpdate)
+    window.addEventListener('sp_gateway_status_updated', handleGwStatusUpdate)
 
     return () => {
       isMounted = false
       window.removeEventListener('sp_notifications_updated', handleNotifUpdate)
+      window.removeEventListener('sp_gateway_status_updated', handleGwStatusUpdate)
     }
   }, [classVal, todayStr])
 
@@ -302,7 +320,19 @@ export const ClassAttendance: React.FC = () => {
             <span className="text-slate-600">•</span>
             <span className="text-rose-400">{absentCount} Absent</span>
           </div>
-          <span className="text-[11px] text-blue-400 font-medium">Auto-WhatsApp</span>
+          <div className="flex items-center space-x-1.5 text-[11px] font-semibold">
+            {gwStatus.status === 'CONNECTED' ? (
+              <span className="text-emerald-400 flex items-center space-x-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>WA Live</span>
+              </span>
+            ) : (
+              <span className="text-amber-400 flex items-center space-x-1">
+                <AlertCircle className="w-3 h-3 text-amber-400" />
+                <span>WA Unlinked</span>
+              </span>
+            )}
+          </div>
         </div>
 
         <button
@@ -352,15 +382,38 @@ export const ClassAttendance: React.FC = () => {
               )}
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 space-y-1">
-              <div className="font-bold flex items-center space-x-1 text-amber-200">
-                <Clock className="w-4 h-4 text-amber-400" />
-                <span>30-Second Notification Window</span>
+            {/* Non-Technical Teacher WhatsApp Status Warning / Confirmation */}
+            {absentCount > 0 && gwStatus.status !== 'CONNECTED' ? (
+              <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-xs text-rose-200 space-y-2">
+                <div className="font-bold flex items-center space-x-1.5 text-rose-300">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>Teacher Note: WhatsApp Is Not Linked</span>
+                </div>
+                <p className="text-[11px] text-rose-200/90 leading-relaxed">
+                  Attendance will be saved in the database, but <strong>parents will NOT receive automated WhatsApp messages</strong> until you link your WhatsApp in Settings.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowConfirmModal(false)
+                    navigate('/settings')
+                  }}
+                  className="text-[11px] font-bold text-rose-300 underline hover:text-white"
+                >
+                  Link WhatsApp on this Phone &rarr;
+                </button>
               </div>
-              <p className="text-[11px] text-amber-300/80 leading-relaxed">
-                Parents of absent students will receive an automated WhatsApp notification after 30 seconds (at <strong>{dispatchTimeString}</strong>). If a student arrives late, update attendance before then to automatically cancel dispatch.
-              </p>
-            </div>
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 space-y-1">
+                <div className="font-bold flex items-center space-x-1 text-amber-200">
+                  <Clock className="w-4 h-4 text-amber-400" />
+                  <span>30-Second Notification Window</span>
+                </div>
+                <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                  Parents of absent students will receive an automated WhatsApp notification after 30 seconds (at <strong>{dispatchTimeString}</strong>). If a student arrives late, update attendance before then to automatically cancel dispatch.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <button

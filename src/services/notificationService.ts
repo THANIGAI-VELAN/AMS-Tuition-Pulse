@@ -274,17 +274,39 @@ export interface GatewayStatusResponse {
   hasQr?: boolean
 }
 
+let cachedGatewayStatus: GatewayStatusResponse = {
+  status: (localStorage.getItem('WA_GATEWAY_STATUS') as 'CONNECTED' | 'DISCONNECTED' | 'CONNECTING') || 'DISCONNECTED',
+  connectedUser: localStorage.getItem('WA_GATEWAY_USER') || null
+}
+
+export const getLatestCachedGatewayStatus = (): GatewayStatusResponse => {
+  return cachedGatewayStatus
+}
+
 export const getWhatsAppGatewayStatus = async (gatewayUrl: string): Promise<GatewayStatusResponse> => {
   try {
     const cleanUrl = gatewayUrl.replace(/\/$/, '')
     const res = await withTimeout(fetch(`${cleanUrl}/status`), 3000)
     if (res.ok) {
-      return await res.json()
+      const data: GatewayStatusResponse = await res.json()
+      cachedGatewayStatus = data
+      localStorage.setItem('WA_GATEWAY_STATUS', data.status)
+      if (data.connectedUser) {
+        localStorage.setItem('WA_GATEWAY_USER', data.connectedUser)
+      } else {
+        localStorage.removeItem('WA_GATEWAY_USER')
+      }
+      window.dispatchEvent(new CustomEvent('sp_gateway_status_updated', { detail: data }))
+      return data
     }
   } catch {
     // Gateway offline or unreachable
   }
-  return { status: 'DISCONNECTED', hasQr: false }
+  const disconnected: GatewayStatusResponse = { status: 'DISCONNECTED', hasQr: false }
+  cachedGatewayStatus = disconnected
+  localStorage.setItem('WA_GATEWAY_STATUS', 'DISCONNECTED')
+  window.dispatchEvent(new CustomEvent('sp_gateway_status_updated', { detail: disconnected }))
+  return disconnected
 }
 
 export const getWhatsAppQrCode = async (gatewayUrl: string): Promise<{ qrDataUrl?: string; message?: string; status?: string }> => {

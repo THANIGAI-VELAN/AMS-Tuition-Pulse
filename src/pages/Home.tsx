@@ -3,10 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { Header } from '../components/layout/Header'
 import { NavigationBar } from '../components/layout/NavigationBar'
 import { fetchStudents, getCachedStudents } from '../services/studentService'
-import { fetchAllNotifications, getCachedNotifications } from '../services/notificationService'
+import {
+  fetchAllNotifications,
+  getCachedNotifications,
+  getLatestCachedGatewayStatus,
+  getWhatsAppGatewayStatus,
+  getEffectiveGatewayUrl,
+  GatewayStatusResponse
+} from '../services/notificationService'
 import { fetchAttendanceByDate, getCachedAttendance } from '../services/attendanceService'
 import { ClassName, Student, NotificationRecord, AttendanceRecord } from '../types/database.types'
-import { Users, Clock, ArrowRight, Zap, Send, ShieldCheck, ChevronRight, UserPlus, ClipboardCheck, MessageSquarePlus } from 'lucide-react'
+import { Users, Clock, ArrowRight, Zap, Send, ShieldCheck, ChevronRight, UserPlus, ClipboardCheck, MessageSquarePlus, AlertTriangle, CheckCircle, Smartphone } from 'lucide-react'
 import { format } from 'date-fns'
 
 export const Home: React.FC = () => {
@@ -19,6 +26,7 @@ export const Home: React.FC = () => {
   const [todayAttendance, setTodayAttendance] = useState<AttendanceRecord[]>(() => {
     return getCachedAttendance().filter(a => a.attendance_date === todayStr)
   })
+  const [gwStatus, setGwStatus] = useState<GatewayStatusResponse>(() => getLatestCachedGatewayStatus())
 
   // 2. Background Stale-While-Revalidate without blocking the UI
   useEffect(() => {
@@ -26,24 +34,37 @@ export const Home: React.FC = () => {
 
     const refreshData = async () => {
       try {
-        const [allStudents, allNotifs, allTodayAtt] = await Promise.all([
+        const [allStudents, allNotifs, allTodayAtt, currentGwStatus] = await Promise.all([
           fetchStudents(),
           fetchAllNotifications(),
-          fetchAttendanceByDate(todayStr)
+          fetchAttendanceByDate(todayStr),
+          getWhatsAppGatewayStatus(getEffectiveGatewayUrl())
         ])
 
         if (isMounted) {
           setStudents(allStudents)
           setNotifications(allNotifs)
           setTodayAttendance(allTodayAtt)
+          setGwStatus(currentGwStatus)
         }
       } catch {
         // Cached data is already displayed
       }
     }
 
+    const handleGwStatusUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<GatewayStatusResponse>
+      if (customEvent.detail && isMounted) {
+        setGwStatus(customEvent.detail)
+      }
+    }
+
     refreshData()
-    return () => { isMounted = false }
+    window.addEventListener('sp_gateway_status_updated', handleGwStatusUpdate)
+    return () => {
+      isMounted = false
+      window.removeEventListener('sp_gateway_status_updated', handleGwStatusUpdate)
+    }
   }, [todayStr])
 
   // Calculate dynamic stats instantly in memory
@@ -140,6 +161,58 @@ export const Home: React.FC = () => {
             <span>WhatsApp Msg</span>
           </button>
         </div>
+
+        {/* Teacher Visual Status Banner (Device Connected vs Unlinked) */}
+        {gwStatus.status === 'CONNECTED' ? (
+          <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-xs text-emerald-200 flex items-center justify-between shadow-md">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <CheckCircle className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="font-bold text-white flex items-center space-x-1.5">
+                  <span>WhatsApp System Ready</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-1.5 py-0.2 rounded-md">LIVE</span>
+                </p>
+                <p className="text-[11px] text-emerald-300/80">
+                  Absent alerts will automatically send via +{gwStatus.connectedUser || 'Admin'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/settings')}
+              className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-all shrink-0"
+            >
+              Manage
+            </button>
+          </div>
+        ) : (
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/70 to-rose-950/70 border border-amber-500/40 text-xs text-amber-200 space-y-2.5 shadow-lg animate-in fade-in duration-300">
+            <div className="flex items-start space-x-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+              <div className="space-y-0.5 flex-1">
+                <p className="font-bold text-white flex items-center space-x-1.5">
+                  <span>WhatsApp Not Linked on Phone</span>
+                  <span className="text-[10px] bg-amber-500/20 text-amber-400 font-bold px-1.5 py-0.2 rounded-md">ACTION REQUIRED</span>
+                </p>
+                <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                  Attendance will save, but <strong>parents will NOT receive WhatsApp alerts</strong> until you link your WhatsApp number.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => navigate('/settings')}
+              className="w-full bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 font-extrabold py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md transition-all active:scale-[0.98]"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>Link WhatsApp in 10 Seconds (No Camera Needed)</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Feature Tip Banner */}
         <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-900/60 to-indigo-900/60 border border-blue-500/30 text-xs text-blue-200 flex items-start space-x-3 shadow-lg">
