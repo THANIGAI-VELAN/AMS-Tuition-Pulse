@@ -43,16 +43,18 @@ export const StudentDetails: React.FC = () => {
     const updated = await updateFeeRecord(feeId, {
       status: newStatus,
       amount_paid: newStatus === 'PAID' ? amountDue : 0,
-      payment_date: newStatus === 'PAID' ? new Date().toISOString() : undefined
+      payment_date: newStatus === 'PAID' ? new Date().toISOString().split('T')[0] : undefined
     })
 
     if (updated) {
-      setFeeRecords(prev => prev.map(f => f.id === feeId ? updated : f))
+      const nextRecords = feeRecords.map(f => (f.id === feeId || (f.month === updated.month && f.year === updated.year && f.student_id === updated.student_id)) ? updated : f)
+      setFeeRecords(nextRecords)
       // Update overall student fee status badge if needed
       if (student) {
-        const hasOverdue = feeRecords.some(f => (f.id === feeId ? updated.status : f.status) === 'OVERDUE')
-        const hasPending = feeRecords.some(f => (f.id === feeId ? updated.status : f.status) === 'PENDING')
-        const overallStatus: FeeStatus = hasOverdue ? 'OVERDUE' : hasPending ? 'PENDING' : 'PAID'
+        const hasOverdue = nextRecords.some(f => f.status === 'OVERDUE')
+        const hasPending = nextRecords.some(f => f.status === 'PENDING')
+        const hasPartial = nextRecords.some(f => f.status === 'PARTIAL')
+        const overallStatus: FeeStatus = hasOverdue ? 'OVERDUE' : (hasPending || hasPartial) ? 'PENDING' : 'PAID'
         if (student.fee_status !== overallStatus) {
           updateStudent(student.id, { fee_status: overallStatus }).then(u => {
             if (u) setStudent(u)

@@ -58,30 +58,21 @@ export const StudentForm: React.FC = () => {
     }
 
     try {
+      const now = new Date()
+      const currentMonth = now.getMonth() + 1
+      const currentYear = now.getFullYear()
+
       if (isEdit && id) {
         const updated = await updateStudent(id, payload)
         if (updated) {
+          await addCustomFeeRecord(id, currentMonth, currentYear, parsedFee, feeStatus)
           await fetchFeeRecordsForStudent(id, payload.joining_date, parsedFee)
-          const now = new Date()
-          const currentMonth = now.getMonth() + 1
-          const currentYear = now.getFullYear()
-          await updateFeeRecord(`fee_${id}_${currentYear}_${currentMonth}`, {
-            status: feeStatus,
-            amount_due: parsedFee,
-            amount_paid: feeStatus === 'PAID' ? parsedFee : 0,
-            payment_date: feeStatus === 'PAID' ? new Date().toISOString() : undefined
-          })
         }
       } else {
         const created = await createStudent(payload)
         if (created && created.id) {
+          await addCustomFeeRecord(created.id, currentMonth, currentYear, parsedFee, feeStatus)
           await fetchFeeRecordsForStudent(created.id, payload.joining_date, parsedFee)
-          const now = new Date()
-          const currentMonth = now.getMonth() + 1
-          const currentYear = now.getFullYear()
-          if (feeStatus === 'PAID') {
-            await addCustomFeeRecord(created.id, currentMonth, currentYear, parsedFee, 'PAID')
-          }
         }
       }
     } catch (err) {
