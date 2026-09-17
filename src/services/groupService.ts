@@ -6,6 +6,63 @@ import { getEffectiveGatewayUrl } from './notificationService'
 
 let inMemoryClassGroups: ClassGroup[] | null = null
 
+export interface ExistingWhatsAppGroup {
+  id: string
+  subject: string
+  size?: number
+}
+
+/**
+ * Fetch list of all existing groups currently in the connected WhatsApp account
+ */
+export const fetchAvailableWhatsAppGroups = async (): Promise<ExistingWhatsAppGroup[]> => {
+  const gatewayUrl = getEffectiveGatewayUrl().replace(/\/$/, '')
+  try {
+    const res = await withTimeout(
+      fetch(`${gatewayUrl}/groups`, {
+        headers: { 'x-api-secret': 'tuition-pulse-secret-key' }
+      }),
+      6000
+    )
+    if (res.ok) {
+      const data = await res.json()
+      if (data.success && Array.isArray(data.groups)) {
+        return data.groups.map((g: any) => ({
+          id: g.id,
+          subject: g.subject || g.id,
+          size: g.size || 0
+        }))
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch WhatsApp groups list:', e)
+  }
+  return []
+}
+
+/**
+ * Link an existing WhatsApp group to a specific Class
+ */
+export const linkExistingWhatsAppGroup = async (
+  className: ClassName,
+  groupJid: string,
+  groupName: string,
+  participantCount?: number
+): Promise<ClassGroup> => {
+  const nowIso = new Date().toISOString()
+  const linked: ClassGroup = {
+    id: `cg-${className}-${Date.now()}`,
+    class_name: className,
+    group_jid: groupJid,
+    group_name: groupName,
+    participant_count: participantCount || 0,
+    created_at: nowIso,
+    updated_at: nowIso
+  }
+  await saveClassGroupMapping(linked)
+  return linked
+}
+
 export const getCachedClassGroups = (): ClassGroup[] => {
   const groups = inMemoryClassGroups || getLocalClassGroups()
   inMemoryClassGroups = groups

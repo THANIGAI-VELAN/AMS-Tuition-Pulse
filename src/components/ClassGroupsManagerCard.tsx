@@ -1,14 +1,28 @@
 import React, { useState, useEffect } from 'react'
 import { fetchStudents } from '../services/studentService'
-import { fetchClassGroups, createClassWhatsAppGroup, syncClassWhatsAppGroup } from '../services/groupService'
+import {
+  fetchClassGroups,
+  createClassWhatsAppGroup,
+  syncClassWhatsAppGroup,
+  fetchAvailableWhatsAppGroups,
+  linkExistingWhatsAppGroup,
+  ExistingWhatsAppGroup
+} from '../services/groupService'
 import { Student, ClassGroup, ClassName } from '../types/database.types'
-import { Users, ExternalLink, PlusCircle, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Users, ExternalLink, PlusCircle, RefreshCw, CheckCircle2, AlertCircle, Link as LinkIcon, X } from 'lucide-react'
 
 export const ClassGroupsManagerCard: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([])
   const [classGroups, setClassGroups] = useState<ClassGroup[]>([])
   const [loadingClass, setLoadingClass] = useState<ClassName | null>(null)
   const [message, setMessage] = useState<{ text: string; success: boolean } | null>(null)
+
+  // Link Existing Group Modal State
+  const [showLinkModal, setShowLinkModal] = useState(false)
+  const [selectedLinkClass, setSelectedLinkClass] = useState<ClassName>('10th')
+  const [availableGroups, setAvailableGroups] = useState<ExistingWhatsAppGroup[]>([])
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('')
+  const [fetchingGroups, setFetchingGroups] = useState(false)
 
   const loadData = async () => {
     const [stus, grps] = await Promise.all([fetchStudents(), fetchClassGroups()])
@@ -19,6 +33,38 @@ export const ClassGroupsManagerCard: React.FC = () => {
   useEffect(() => {
     loadData()
   }, [])
+
+  const handleOpenLinkModal = async (className?: ClassName) => {
+    if (className) setSelectedLinkClass(className)
+    setShowLinkModal(true)
+    setFetchingGroups(true)
+    setMessage(null)
+
+    const groups = await fetchAvailableWhatsAppGroups()
+    setAvailableGroups(groups)
+    if (groups.length > 0) {
+      setSelectedGroupId(groups[0].id)
+    }
+    setFetchingGroups(false)
+  }
+
+  const handleSaveExistingLink = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedGroupId) return
+
+    const chosenGroup = availableGroups.find(g => g.id === selectedGroupId)
+    if (!chosenGroup) return
+
+    setLoadingClass(selectedLinkClass)
+    await linkExistingWhatsAppGroup(selectedLinkClass, chosenGroup.id, chosenGroup.subject, chosenGroup.size)
+    await loadData()
+    setLoadingClass(null)
+    setShowLinkModal(false)
+    setMessage({
+      text: `✅ Linked existing WhatsApp group "${chosenGroup.subject}" to ${selectedLinkClass} Standard!`,
+      success: true
+    })
+  }
 
   const handleCreateOrSync = async (className: ClassName) => {
     setLoadingClass(className)
@@ -58,9 +104,18 @@ export const ClassGroupsManagerCard: React.FC = () => {
           </div>
           <div>
             <h3 className="font-bold text-sm text-white">Class WhatsApp Groups</h3>
-            <p className="text-[11px] text-slate-400">1-Click parent group mapping & announcements</p>
+            <p className="text-[11px] text-slate-400">1-Click group announcements & linking</p>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => handleOpenLinkModal()}
+          className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-white text-xs font-bold flex items-center space-x-1 transition-all active:scale-95"
+        >
+          <LinkIcon className="w-3.5 h-3.5" />
+          <span>Link Existing</span>
+        </button>
       </div>
 
       {message && (
@@ -85,17 +140,17 @@ export const ClassGroupsManagerCard: React.FC = () => {
             >
               <div className="space-y-0.5">
                 <div className="flex items-center space-x-2">
-                  <span className="font-bold text-xs text-white">{cls} Standard Group</span>
+                  <span className="font-bold text-xs text-white">{cls} Standard</span>
                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${
                     group
                       ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
                       : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                   }`}>
-                    {group ? 'MAPPED' : 'NOT CREATED'}
+                    {group ? 'MAPPED' : 'NOT LINKED'}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 font-mono">
-                  {group ? `${activeCount} Students Mapped` : `${activeCount} Parents Available`}
+                <p className="text-[11px] text-slate-400">
+                  {group ? group.group_name : `${activeCount} Parents in class`}
                 </p>
               </div>
 
@@ -106,11 +161,20 @@ export const ClassGroupsManagerCard: React.FC = () => {
                     target="_blank"
                     rel="noreferrer"
                     className="p-2 rounded-xl bg-slate-900 border border-slate-700 text-emerald-400 hover:text-white text-xs font-bold"
-                    title="Open Group Invite"
+                    title="Open Group in WhatsApp"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenLinkModal(cls)}
+                  className="px-2.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-semibold"
+                  title="Choose existing group from WhatsApp"
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                </button>
 
                 <button
                   type="button"
@@ -139,6 +203,93 @@ export const ClassGroupsManagerCard: React.FC = () => {
           )
         })}
       </div>
+
+      {/* Modal: Link Existing WhatsApp Group */}
+      {showLinkModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleSaveExistingLink} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-white flex items-center space-x-2">
+                <LinkIcon className="w-4 h-4 text-indigo-400" />
+                <span>Link Existing WhatsApp Group</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowLinkModal(false)}
+                className="p-1 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-slate-300 font-semibold">Select Class</label>
+              <div className="grid grid-cols-3 gap-2">
+                {classes.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setSelectedLinkClass(c)}
+                    className={`py-2 rounded-xl font-bold text-xs border transition-all ${
+                      selectedLinkClass === c
+                        ? 'bg-blue-600 border-blue-500 text-white'
+                        : 'bg-slate-950 border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {c} Std
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-slate-300 font-semibold">
+                Select WhatsApp Group on Your Phone
+              </label>
+
+              {fetchingGroups ? (
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-center text-xs text-slate-400">
+                  Fetching groups from connected WhatsApp...
+                </div>
+              ) : availableGroups.length === 0 ? (
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-amber-300 space-y-1">
+                  <p>No WhatsApp groups detected on your connected device.</p>
+                  <p className="text-[10px] text-slate-400">Make sure WhatsApp is connected in Settings, or use "Create Group" to automatically generate one.</p>
+                </div>
+              ) : (
+                <select
+                  value={selectedGroupId}
+                  onChange={(e) => setSelectedGroupId(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                >
+                  {availableGroups.map(g => (
+                    <option key={g.id} value={g.id}>
+                      {g.subject} ({g.size} members)
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowLinkModal(false)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-semibold text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!selectedGroupId || availableGroups.length === 0}
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs disabled:opacity-50"
+              >
+                Link Group
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }

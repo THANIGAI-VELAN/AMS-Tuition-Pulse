@@ -400,25 +400,47 @@ export const CustomMessage: React.FC = () => {
 
               <div className="flex items-center space-x-2 pt-1">
                 {!currentClassGroup ? (
-                  <button
-                    type="button"
-                    disabled={groupActionLoading}
-                    onClick={handleCreateGroup}
-                    className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-600/30 active:scale-95 disabled:opacity-50"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" />
-                    <span>{groupActionLoading ? 'Creating Group...' : `⚡ Create ${selectedClass} WhatsApp Group`}</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      disabled={groupActionLoading}
+                      onClick={() => navigate('/settings')}
+                      className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 font-bold text-xs flex items-center justify-center space-x-1"
+                      title="Link existing WhatsApp Group"
+                    >
+                      <span>🔗 Link Existing</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={groupActionLoading}
+                      onClick={handleCreateGroup}
+                      className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-600/30 active:scale-95 disabled:opacity-50"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>{groupActionLoading ? 'Creating...' : `⚡ Auto-Create Group`}</span>
+                    </button>
+                  </>
                 ) : (
-                  <button
-                    type="button"
-                    disabled={groupActionLoading}
-                    onClick={handleSyncGroup}
-                    className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-1.5 active:scale-95 disabled:opacity-50"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${groupActionLoading ? 'animate-spin' : ''}`} />
-                    <span>Sync {classStudents.length} Active Parents</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      disabled={groupActionLoading}
+                      onClick={() => navigate('/settings')}
+                      className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-xs flex items-center justify-center space-x-1"
+                      title="Change linked WhatsApp Group"
+                    >
+                      <span>Change Group</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={groupActionLoading}
+                      onClick={handleSyncGroup}
+                      className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-1.5 active:scale-95 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${groupActionLoading ? 'animate-spin' : ''}`} />
+                      <span>Sync {classStudents.length} Parents</span>
+                    </button>
+                  </>
                 )}
               </div>
             </div>
