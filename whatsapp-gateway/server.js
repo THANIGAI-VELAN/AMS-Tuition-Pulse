@@ -105,35 +105,50 @@ async function connectToWhatsApp() {
 
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 401
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401
+        const shouldReconnect = !isLoggedOut
 
-        connectionStatus = 'DISCONNECTED'
         latestQrCode = null
-        connectedUser = null
 
         console.log(`[GATEWAY] Connection closed (Status Code: ${statusCode}). Reconnect allowed: ${shouldReconnect}`)
 
         if (shouldReconnect) {
+          connectionStatus = 'CONNECTING'
           const delay = statusCode === DisconnectReason.restartRequired ? 1000 : 3000
           reconnectTimer = setTimeout(() => connectToWhatsApp(), delay)
         } else {
           console.log('[GATEWAY] Session logged out from phone. Resetting auth...')
+          connectionStatus = 'DISCONNECTED'
+          connectedUser = null
           clearAuthSession()
           reconnectTimer = setTimeout(() => connectToWhatsApp(), 2000)
         }
       } else if (connection === 'open') {
         connectionStatus = 'CONNECTED'
         latestQrCode = null
-        connectedUser = socket.user?.id ? socket.user.id.split(':')[0] : 'Admin'
+        connectedUser = socket.user?.id ? socket.user.id.split(':')[0] : (connectedUser || 'Admin')
         console.log(`[GATEWAY] WhatsApp Connected Successfully! User Phone: +${connectedUser}`)
       }
     })
   } catch (err) {
     console.error('[GATEWAY] Error in connectToWhatsApp:', err)
-    connectionStatus = 'DISCONNECTED'
+    connectionStatus = 'CONNECTING'
     reconnectTimer = setTimeout(() => connectToWhatsApp(), 5000)
   }
 }
+
+// 24/7 Keep-Alive Self Ping to prevent Render.com free tier from sleeping
+const SELF_PING_URL = process.env.RENDER_EXTERNAL_URL || 'https://tuition-pulse-gateway.onrender.com'
+setInterval(async () => {
+  try {
+    const res = await fetch(`${SELF_PING_URL.replace(/\/$/, '')}/status`)
+    if (res.ok) {
+      console.log(`[GATEWAY] 24/7 Keep-Alive heartbeat OK (${new Date().toLocaleTimeString()})`)
+    }
+  } catch (e) {
+    // ignore
+  }
+}, 7 * 60 * 1000) // Ping every 7 minutes
 
 // Security Middleware
 const verifySecret = (req, res, next) => {

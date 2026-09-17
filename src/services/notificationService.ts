@@ -283,25 +283,48 @@ export const getLatestCachedGatewayStatus = (): GatewayStatusResponse => {
   return cachedGatewayStatus
 }
 
-export const getWhatsAppGatewayStatus = async (gatewayUrl: string): Promise<GatewayStatusResponse> => {
+export const getWhatsAppGatewayStatus = async (
+  gatewayUrl: string,
+  retryCount: number = 0
+): Promise<GatewayStatusResponse> => {
   try {
     const cleanUrl = gatewayUrl.replace(/\/$/, '')
-    const res = await withTimeout(fetch(`${cleanUrl}/status`), 3000)
+    // Allow up to 8s for cold start / wake-up
+    const res = await withTimeout(fetch(`${cleanUrl}/status`), 8000)
     if (res.ok) {
       const data: GatewayStatusResponse = await res.json()
       cachedGatewayStatus = data
       localStorage.setItem('WA_GATEWAY_STATUS', data.status)
       if (data.connectedUser) {
         localStorage.setItem('WA_GATEWAY_USER', data.connectedUser)
-      } else {
+      } else if (data.status === 'DISCONNECTED') {
         localStorage.removeItem('WA_GATEWAY_USER')
       }
       window.dispatchEvent(new CustomEvent('sp_gateway_status_updated', { detail: data }))
       return data
     }
-  } catch {
-    // Gateway offline or unreachable
+  } catch (err) {
+    // If cold-start or temporary network hiccup, retry once after a short delay
+    if (retryCount === 0) {
+      await new Promise(r => setTimeout(r, 1500))
+      return getWhatsAppGatewayStatus(gatewayUrl, 1)
+    }
   }
+
+  // If previous known status was CONNECTED, retain CONNECTED or CONNECTING rather than flashing disconnected
+  const previousStatus = localStorage.getItem('WA_GATEWAY_STATUS')
+  const previousUser = localStorage.getItem('WA_GATEWAY_USER')
+
+  if (previousStatus === 'CONNECTED' && previousUser) {
+    const retainedState: GatewayStatusResponse = {
+      status: 'CONNECTED',
+      connectedUser: previousUser,
+      hasQr: false
+    }
+    cachedGatewayStatus = retainedState
+    return retainedState
+  }
+
   const disconnected: GatewayStatusResponse = { status: 'DISCONNECTED', hasQr: false }
   cachedGatewayStatus = disconnected
   localStorage.setItem('WA_GATEWAY_STATUS', 'DISCONNECTED')
