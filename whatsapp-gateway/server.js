@@ -87,9 +87,10 @@ async function connectToWhatsApp() {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, logger)
       },
-      browser: Browsers.ubuntu('Chrome'),
+      browser: Browsers.macOS('Desktop'),
       printQRInTerminal: false,
       connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 60000,
       keepAliveIntervalMs: 25000,
       retryRequestDelayMs: 500,
       maxRetries: 5,
@@ -105,7 +106,13 @@ async function connectToWhatsApp() {
       }
     })
 
-    socket.ev.on('creds.update', saveCreds)
+    socket.ev.on('creds.update', async () => {
+      try {
+        await saveCreds()
+      } catch (err) {
+        console.error('[GATEWAY] Error saving creds:', err)
+      }
+    })
 
     socket.ev.on('connection.update', (update) => {
       const { connection, lastDisconnect, qr } = update
@@ -130,7 +137,7 @@ async function connectToWhatsApp() {
         if (shouldReconnect) {
           connectionStatus = 'CONNECTING'
           // 515 = restartRequired (WhatsApp sends this when phone pairing succeeds to establish registered state)
-          const delay = statusCode === DisconnectReason.restartRequired ? 1500 : 3000
+          const delay = statusCode === DisconnectReason.restartRequired ? 1000 : 2500
           reconnectTimer = setTimeout(() => connectToWhatsApp(), delay)
         } else {
           console.log('[GATEWAY] Session logged out from phone. Resetting auth...')
