@@ -75,18 +75,32 @@ CREATE TABLE IF NOT EXISTS public.fees (
     CONSTRAINT unique_student_fee_month UNIQUE (student_id, month, year)
 );
 
+-- Table: class_groups (WhatsApp Group mapping for 10th, 11th, 12th)
+CREATE TABLE IF NOT EXISTS public.class_groups (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    class_name TEXT NOT NULL UNIQUE CHECK (class_name IN ('10th', '11th', '12th')),
+    group_jid TEXT NOT NULL,
+    group_name TEXT NOT NULL,
+    invite_url TEXT,
+    participant_count INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
 -- 3. INDEXES FOR PERFORMANCE
 CREATE INDEX IF NOT EXISTS idx_students_class ON public.students(class_name);
 CREATE INDEX IF NOT EXISTS idx_students_active ON public.students(active);
 CREATE INDEX IF NOT EXISTS idx_attendance_student_date ON public.attendance(student_id, attendance_date);
 CREATE INDEX IF NOT EXISTS idx_attendance_date ON public.attendance(attendance_date);
 CREATE INDEX IF NOT EXISTS idx_notifications_status_scheduled ON public.notifications(status, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_class_groups_class ON public.class_groups(class_name);
 
 -- 4. ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.class_groups ENABLE ROW LEVEL SECURITY;
 
 -- Allow anon, authenticated, and service_role full access
 DROP POLICY IF EXISTS "Allow authenticated admin full access to students" ON public.students;
@@ -107,6 +121,10 @@ CREATE POLICY "Allow anon and authenticated full access to notifications" ON pub
 DROP POLICY IF EXISTS "Allow authenticated admin full access to fees" ON public.fees;
 DROP POLICY IF EXISTS "Allow anon and authenticated full access to fees" ON public.fees;
 CREATE POLICY "Allow anon and authenticated full access to fees" ON public.fees
+    FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon and authenticated full access to class_groups" ON public.class_groups;
+CREATE POLICY "Allow anon and authenticated full access to class_groups" ON public.class_groups
     FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true);
 
 -- Enable service role access for Edge Functions

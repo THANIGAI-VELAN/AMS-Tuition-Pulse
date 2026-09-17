@@ -243,12 +243,23 @@ app.post('/pair-code', async (req, res) => {
 
 const sentMessageDeduplication = new Map()
 
-// 4. Send Message Endpoint
+function formatPhoneToJid(phone) {
+  let clean = String(phone).replace(/[^0-9]/g, '')
+  while (clean.startsWith('0')) {
+    clean = clean.substring(1)
+  }
+  if (clean.length === 10) {
+    clean = `91${clean}`
+  }
+  return `${clean}@s.whatsapp.net`
+}
+
+// 4. Send Message Endpoint (Supports individual phone numbers and @g.us group JIDs)
 app.post('/send', verifySecret, async (req, res) => {
   const { phone, message } = req.body
 
   if (!phone || !message) {
-    return res.status(400).json({ error: 'Phone number and message text are required' })
+    return res.status(400).json({ error: 'Phone number/Group ID and message text are required' })
   }
 
   if (connectionStatus !== 'CONNECTED' || !socket) {
@@ -256,18 +267,16 @@ app.post('/send', verifySecret, async (req, res) => {
   }
 
   try {
-    let cleanPhone = phone.replace(/[^0-9]/g, '')
-    if (cleanPhone.length === 10) {
-      cleanPhone = `91${cleanPhone}`
-    }
+    const isGroup = String(phone).endsWith('@g.us')
+    const targetJid = isGroup ? phone : formatPhoneToJid(phone)
 
-    // High-speed deduplication protection (5-second throttle per identical message to same phone)
-    const dedupKey = `${cleanPhone}:${message.trim()}`
+    // High-speed deduplication protection (5-second throttle per identical message to same destination)
+    const dedupKey = `${targetJid}:${message.trim()}`
     const lastSentTime = sentMessageDeduplication.get(dedupKey)
     const now = Date.now()
 
     if (lastSentTime && (now - lastSentTime < 5000)) {
-      console.log(`[GATEWAY] Skipped duplicate send to ${cleanPhone} within 5s.`)
+      console.log(`[GATEWAY] Skipped duplicate send to ${targetJid} within 5s.`)
       return res.json({ success: true, messageId: 'DEDUPLICATED_SKIP', note: 'Duplicate message skipped' })
     }
 
@@ -276,8 +285,7 @@ app.post('/send', verifySecret, async (req, res) => {
       sentMessageDeduplication.clear()
     }
 
-    const jid = `${cleanPhone}@s.whatsapp.net`
-    const sent = await socket.sendMessage(jid, { text: message })
+    const sent = await socket.sendMessage(targetJid, { text: message })
 
     if (sent?.key?.id) {
       // Cache message content for encryption retry handshakes
@@ -288,11 +296,112 @@ app.post('/send', verifySecret, async (req, res) => {
       }
     }
 
-    console.log(`[GATEWAY] Message sent successfully to ${cleanPhone}. MsgId: ${sent?.key?.id || 'OK'}`)
-    res.json({ success: true, messageId: sent?.key?.id || `GW_${Date.now()}` })
+    console.log(`[GATEWAY] Message sent successfully to ${targetJid}. MsgId: ${sent?.key?.id || 'OK'}`)
+    res.json({ success: true, messageId: sent?.key?.id || `GW_${Date.now()}`, jid: targetJid })
   } catch (err) {
     console.error('[GATEWAY] Error sending WhatsApp message:', err)
     res.status(500).json({ error: err.message || 'Failed to send message' })
+  }
+})
+
+// 5. Create WhatsApp Group Endpoint
+app.post('/groups/create', verifySecret, async (req, res) => {
+  const { groupName, phones } = req.body
+
+  if (!groupName) {
+    return res.status(400).json({ error: 'groupName is required' })
+  }
+
+  if (connectionStatus !== 'CONNECTED' || !socket) {
+    return res.status(503).json({ error: 'WhatsApp is not connected. Please connect WhatsApp first.' })
+  }
+
+  try {
+    const validPhones = Array.isArray(phones) ? phones : []
+    const participantJids = validPhones
+      .map(p => formatPhoneToJid(p))
+      .filter((jid, idx, arr) => arr.indexOf(jid) === idx)
+
+    console.log(`[GATEWAY] Creating WhatsApp group "${groupName}" with ${participantJids.length} participants...`)
+    const group = await socket.groupCreate(groupName, participantJids)
+    const groupId = group?.id
+
+    let inviteCode = ''
+    let inviteUrl = ''
+    try {
+      if (groupId) {
+        inviteCode = await socket.groupInviteCode(groupId)
+        if (inviteCode) {
+          inviteUrl = `https://chat.whatsapp.com/${inviteCode}`
+        }
+      }
+    } catch (e) {
+      console.warn('[GATEWAY] Could not fetch group invite code immediately:', e.message)
+    }
+
+    console.log(`[GATEWAY] Group created successfully: ${groupName} (${groupId})`)
+    res.json({
+      success: true,
+      groupId,
+      groupName,
+      inviteCode,
+      inviteUrl,
+      participantCount: participantJids.length
+    })
+  } catch (err) {
+    console.error('[GATEWAY] Error creating WhatsApp group:', err)
+    res.status(500).json({ error: err.message || 'Failed to create WhatsApp group' })
+  }
+})
+
+// 6. Sync / Add Participants to Group
+app.post('/groups/sync', verifySecret, async (req, res) => {
+  const { groupId, phones } = req.body
+
+  if (!groupId || !phones || !Array.isArray(phones)) {
+    return res.status(400).json({ error: 'groupId and array of phones are required' })
+  }
+
+  if (connectionStatus !== 'CONNECTED' || !socket) {
+    return res.status(503).json({ error: 'WhatsApp is not connected.' })
+  }
+
+  try {
+    const participantJids = phones
+      .map(p => formatPhoneToJid(p))
+      .filter((jid, idx, arr) => arr.indexOf(jid) === idx)
+
+    if (participantJids.length > 0) {
+      const response = await socket.groupParticipantsUpdate(groupId, participantJids, 'add')
+      console.log(`[GATEWAY] Synced participants to group ${groupId}:`, response)
+    }
+
+    res.json({ success: true, message: `Attempted adding ${participantJids.length} participants to group.` })
+  } catch (err) {
+    console.error('[GATEWAY] Error syncing group participants:', err)
+    res.status(500).json({ error: err.message || 'Failed to sync group participants' })
+  }
+})
+
+// 7. List Participating Groups
+app.get('/groups', verifySecret, async (req, res) => {
+  if (connectionStatus !== 'CONNECTED' || !socket) {
+    return res.status(503).json({ error: 'WhatsApp is not connected.' })
+  }
+
+  try {
+    const groups = await socket.groupFetchAllParticipating()
+    const groupList = Object.values(groups).map(g => ({
+      id: g.id,
+      subject: g.subject,
+      creation: g.creation,
+      owner: g.owner,
+      size: g.participants?.length || 0
+    }))
+    res.json({ success: true, groups: groupList })
+  } catch (err) {
+    console.error('[GATEWAY] Error listing WhatsApp groups:', err)
+    res.status(500).json({ error: err.message || 'Failed to list WhatsApp groups' })
   }
 })
 

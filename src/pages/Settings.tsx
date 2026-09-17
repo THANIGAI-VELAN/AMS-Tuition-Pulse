@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Header } from '../components/layout/Header'
 import { NavigationBar } from '../components/layout/NavigationBar'
 import { WhatsAppGatewayCard } from '../components/WhatsAppGatewayCard'
+import { ClassGroupsManagerCard } from '../components/ClassGroupsManagerCard'
 import { useAuth } from '../context/AuthContext'
 import { Download, LogOut, ShieldCheck, Smartphone, Database, CheckCircle2, Zap, Wifi } from 'lucide-react'
 
@@ -112,9 +113,11 @@ export const Settings: React.FC = () => {
           </div>
         </div>
 
+        {/* Class WhatsApp Groups Manager */}
+        <ClassGroupsManagerCard />
+
         {/* WhatsApp Personal Phone Link Card (Method 2) */}
         <WhatsAppGatewayCard />
-
 
         <button
           onClick={logout}

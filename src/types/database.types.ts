@@ -67,3 +67,15 @@ export interface ClassSummary {
   absentCount: number
   attendanceRate: number
 }
+
+export interface ClassGroup {
+  id: string
+  class_name: ClassName
+  group_jid: string
+  group_name: string
+  invite_url?: string
+  participant_count?: number
+  created_at: string
+  updated_at: string
+}
+

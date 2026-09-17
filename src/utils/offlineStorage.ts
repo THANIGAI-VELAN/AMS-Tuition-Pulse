@@ -1,9 +1,10 @@
-import { Student, AttendanceRecord, NotificationRecord, FeeRecord } from '../types/database.types'
+import { Student, AttendanceRecord, NotificationRecord, FeeRecord, ClassGroup } from '../types/database.types'
 
 const STUDENTS_KEY = 'sp_academy_students'
 const ATTENDANCE_KEY = 'sp_academy_attendance'
 const NOTIFICATIONS_KEY = 'sp_academy_notifications'
 const FEES_KEY = 'sp_academy_fees'
+const CLASS_GROUPS_KEY = 'sp_academy_class_groups'
 
 // Legacy seed student IDs to automatically purge from previous cache
 const LEGACY_MOCK_IDS = new Set(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'])
@@ -77,9 +78,26 @@ export const saveLocalFeeRecords = (records: FeeRecord[]) => {
   localStorage.setItem(FEES_KEY, JSON.stringify(records))
 }
 
+export const getLocalClassGroups = (): ClassGroup[] => {
+  const stored = localStorage.getItem(CLASS_GROUPS_KEY)
+  if (!stored) return []
+  try {
+    const parsed = JSON.parse(stored)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+export const saveLocalClassGroups = (groups: ClassGroup[]) => {
+  localStorage.setItem(CLASS_GROUPS_KEY, JSON.stringify(groups))
+}
+
 export const clearAllLocalData = () => {
   localStorage.removeItem(STUDENTS_KEY)
   localStorage.removeItem(ATTENDANCE_KEY)
   localStorage.removeItem(NOTIFICATIONS_KEY)
   localStorage.removeItem(FEES_KEY)
+  localStorage.removeItem(CLASS_GROUPS_KEY)
 }
+

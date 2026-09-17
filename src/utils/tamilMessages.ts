@@ -3,7 +3,7 @@
  */
 
 export interface StudentMessageParams {
-  studentName: string
+  studentName?: string
   className?: string
   parentName?: string
   dateStr?: string
@@ -147,3 +147,78 @@ ${details}
 நன்றி,
 *SP Academy நிர்வாகம்*`
 }
+
+/**
+ * 5. Class Group: Exam Timetable & Schedule Notice in Tamil
+ */
+export const getTamilClassExamScheduleMessage = (className: string, examName?: string, dateDetails?: string): string => {
+  return `📢 *SP Academy - ${className} வகுப்பு சிறப்புத் தேர்வு அறிவிப்பு*
+
+அன்புடைய பெற்றோர்கள் மற்றும் மாணவர்களுக்கு வணக்கம்,
+
+${className} மாணவர்களுக்கான *${examName || 'வாராந்திர மாதிரித் தேர்வு'}* அட்டவணை:
+
+📅 நாள் / நேரம்: ${dateDetails || 'வரும் ஞாயிற்றுக்கிழமை காலை 10:00 மணி'}
+📚 பாடப்பகுதி: முழு பாடத்திட்டம் / திருப்புதல்
+
+மாணவர்கள் அனைவரும் தேர்வுக்கு முறையாகத் தயாராகி குறித்த நேரத்தில் கலந்துகொள்ளுமாறு கேட்டுக்கொள்கிறோம்.
+
+நன்றி,
+*SP Academy ஆசிரியர் குழு*`
+}
+
+/**
+ * 6. Class Group: Holiday Announcement in Tamil
+ */
+export const getTamilClassHolidayMessage = (className: string, reason?: string, dateStr?: string): string => {
+  return `🌴 *SP Academy - ${className} வகுப்பு விடுமுறை அறிவிப்பு*
+
+அன்புடைய பெற்றோர்களே,
+
+${dateStr ? `*${dateStr}* அன்று ` : 'நாளை '}${className} வகுப்பு மாணவர்களுக்கு *${reason || 'டியூஷன் வகுப்புகள் நடைபெறாது / விடுமுறை'}*.
+
+அடுத்த வகுப்பு வழக்கம் போல் நடைபெறும்.
+
+நன்றி,
+*SP Academy நிர்வாகம்*`
+}
+
+/**
+ * 7. Class Group: Special / Extra Revision Class Notice in Tamil
+ */
+export const getTamilClassSpecialClassMessage = (className: string, subject?: string, timing?: string, dateStr?: string): string => {
+  return `⏰ *SP Academy - ${className} சிறப்பு திருப்புதல் வகுப்பு*
+
+பெற்றோர்கள் மற்றும் மாணவர்களின் கவனத்திற்கு:
+
+${className} வகுப்பு மாணவர்களுக்கான *${subject || 'முக்கிய பாட'} சிறப்பு வகுப்பு* நடைபெறும் விவரம்:
+
+📅 நாள்: ${dateStr || 'நாளை'}
+⏰ நேரம்: ${timing || 'மாலை 6:00 மணி முதல் 8:30 மணி வரை'}
+
+மாணவர்கள் கட்டாயம் கலந்துகொண்டு பயன்பெறுமாறு கேட்டுக்கொள்கிறோம்.
+
+நன்றி,
+*SP Academy*`
+}
+
+/**
+ * 8. Class Group: Parents-Teachers Meeting (PTM) Notice
+ */
+export const getTamilClassMeetingMessage = (className: string, timing?: string, dateStr?: string): string => {
+  return `🤝 *SP Academy - ${className} பெற்றோர் ஆசிரியர் கலந்தாய்வு கூட்டம்*
+
+அன்பார்ந்த ${className} வகுப்பு பெற்றோர்களுக்கு வணக்கம்,
+
+மாணவர்களின் கல்வி முன்னேற்றம் மற்றும் தேர்வுத் தயாரிப்பு குறித்து கலந்துரையாட பெற்றோர் சந்திப்பு நடைபெற உள்ளது.
+
+📅 நாள்: ${dateStr || 'வரும் ஞாயிற்றுக்கிழமை'}
+⏰ நேரம்: ${timing || 'காலை 10:30 மணி'}
+📍 இடம்: SP Academy வளாகம்
+
+பெற்றோர்கள் அனைவரும் குறித்த நேரத்தில் வருகை தந்து கலந்துகொள்ளுமாறு அன்புடன் அழைக்கிறோம்.
+
+நன்றி,
+*SP Academy நிர்வாகம்*`
+}
+
