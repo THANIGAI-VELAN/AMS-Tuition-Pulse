@@ -370,15 +370,18 @@ export const getWhatsAppPairingCode = async (
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone })
       }),
-      8000
+      30000
     )
     if (res.ok) {
       return await res.json()
     } else {
       const data = await res.json().catch(() => ({}))
-      return { success: false, error: data.error || 'Failed to request pairing code' }
+      return { success: false, error: data.error || 'Failed to request pairing code from WhatsApp' }
     }
   } catch {
-    return { success: false, error: 'Gateway server unreachable. Please make sure the gateway is running.' }
+    return {
+      success: false,
+      error: 'Gateway server took too long to respond. If running on free cloud tier, server is waking up. Please retry in a few seconds.'
+    }
   }
 }

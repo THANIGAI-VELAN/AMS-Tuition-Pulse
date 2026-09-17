@@ -39,7 +39,7 @@ export const WhatsAppGatewayCard: React.FC = () => {
   const [showQrModal, setShowQrModal] = useState<boolean>(false)
   const [message, setMessage] = useState<string>('')
 
-  // 60-Second Countdown Timer for WhatsApp Pairing Codes
+  // 120-Second Countdown Timer for WhatsApp Pairing Codes
   useEffect(() => {
     let timer: NodeJS.Timeout
     if (pairingCode && timeLeft > 0) {
@@ -63,11 +63,40 @@ export const WhatsAppGatewayCard: React.FC = () => {
     checkStatus()
   }, [gatewayUrl])
 
+  // Active Auto-Polling while user is entering code in WhatsApp
+  useEffect(() => {
+    let pollInterval: NodeJS.Timeout
+    if (pairingCode || statusInfo.status === 'CONNECTING') {
+      pollInterval = setInterval(async () => {
+        const res = await getWhatsAppGatewayStatus(gatewayUrl)
+        if (res.status === 'CONNECTED') {
+          setStatusInfo(res)
+          setPairingCode(null)
+          setMessage('🎉 WhatsApp linked successfully! Automated absence alerts are active.')
+        } else {
+          setStatusInfo(res)
+        }
+      }, 2500)
+    }
+    return () => {
+      if (pollInterval) clearInterval(pollInterval)
+    }
+  }, [pairingCode, statusInfo.status, gatewayUrl])
+
   const handleSaveUrl = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
     setGatewayUrl(val)
     localStorage.setItem('WHATSAPP_GATEWAY_URL', val)
   }
+
+  const normalizedPhonePreview = (() => {
+    let clean = adminPhone.replace(/[^0-9]/g, '')
+    while (clean.startsWith('0')) clean = clean.substring(1)
+    if (!clean) return ''
+    if (clean.length === 10) return `+91 ${clean}`
+    if (clean.startsWith('91') && clean.length === 12) return `+91 ${clean.substring(2)}`
+    return `+${clean}`
+  })()
 
   // Handle Pairing Code Generation (Single-Device on Phone)
   const handleGeneratePairingCode = async (e?: React.FormEvent) => {
@@ -79,9 +108,9 @@ export const WhatsAppGatewayCard: React.FC = () => {
 
     localStorage.setItem('ADMIN_WA_PHONE', adminPhone.trim())
     setLoading(true)
-    setMessage('Requesting fresh 8-digit pairing code from WhatsApp...')
+    setMessage('Initializing clean gateway socket & requesting 8-digit pairing code...')
     setPairingCode(null)
-    setTimeLeft(60)
+    setTimeLeft(120)
 
     const res = await getWhatsAppPairingCode(gatewayUrl, adminPhone.trim())
     setLoading(false)
@@ -89,13 +118,13 @@ export const WhatsAppGatewayCard: React.FC = () => {
     if (res.pairingCode) {
       setPairingCode(res.pairingCode)
       setFormattedPhone(res.pairingCode)
-      setTimeLeft(60)
-      setMessage('')
+      setTimeLeft(120)
+      setMessage('Pairing code generated! Follow the 3 steps below in WhatsApp.')
     } else if (res.status === 'CONNECTED') {
       checkStatus()
       setMessage('WhatsApp is ALREADY connected!')
     } else {
-      setMessage(res.error || res.message || 'Failed to generate pairing code. Ensure gateway server is online.')
+      setMessage(res.error || res.message || 'Failed to generate pairing code. Ensure gateway server is running.')
     }
   }
 
@@ -132,7 +161,7 @@ export const WhatsAppGatewayCard: React.FC = () => {
     setPairingCode(null)
     await resetWhatsAppGatewaySession(gatewayUrl)
     setLoading(false)
-    setMessage('Session cleared. You can now pair a new phone number.')
+    setMessage('Session cleared. You can now request a fresh pairing code.')
     setTimeout(() => {
       checkStatus()
     }, 1500)
@@ -250,21 +279,31 @@ export const WhatsAppGatewayCard: React.FC = () => {
               </div>
 
               <form onSubmit={handleGeneratePairingCode} className="space-y-2">
-                <input
-                  type="tel"
-                  value={adminPhone}
-                  onChange={(e) => setAdminPhone(e.target.value)}
-                  placeholder="e.g. 9876543210 or 919876543210"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                />
+                <div>
+                  <input
+                    type="tel"
+                    value={adminPhone}
+                    onChange={(e) => setAdminPhone(e.target.value)}
+                    placeholder="e.g. 9876543210 or 919876543210"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  />
+                  {normalizedPhonePreview && (
+                    <div className="flex items-center justify-between mt-1 px-1 text-[10px] text-slate-400">
+                      <span>Linking WhatsApp as:</span>
+                      <span className="font-mono font-bold text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                        {normalizedPhonePreview}
+                      </span>
+                    </div>
+                  )}
+                </div>
 
                 <button
                   type="submit"
                   disabled={loading || !adminPhone.trim()}
-                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20 transition-all"
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.99]"
                 >
                   <KeyRound className="w-3.5 h-3.5" />
-                  <span>{loading ? 'Requesting Code...' : 'Get 8-Digit Pairing Code'}</span>
+                  <span>{loading ? 'Requesting Code from WhatsApp...' : 'Get 8-Digit Pairing Code'}</span>
                 </button>
               </form>
 
@@ -273,8 +312,11 @@ export const WhatsAppGatewayCard: React.FC = () => {
                 <div className="mt-3 p-3.5 bg-emerald-950/30 border border-emerald-500/30 rounded-2xl space-y-3 animate-in fade-in duration-300">
                   <div className="text-center space-y-1">
                     <div className="flex items-center justify-between text-[10px]">
-                      <span className="font-bold tracking-wider text-emerald-400 uppercase">Your Pairing Code</span>
-                      <span className={`font-mono font-bold ${timeLeft < 15 ? 'text-rose-400 animate-pulse' : 'text-slate-400'}`}>
+                      <span className="font-bold tracking-wider text-emerald-400 uppercase flex items-center space-x-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
+                        <span>Waiting for WhatsApp Link</span>
+                      </span>
+                      <span className={`font-mono font-bold ${timeLeft < 20 ? 'text-rose-400 animate-pulse' : 'text-slate-400'}`}>
                         ⏱️ Valid for {timeLeft}s
                       </span>
                     </div>
@@ -283,9 +325,13 @@ export const WhatsAppGatewayCard: React.FC = () => {
                       {pairingCode}
                     </div>
 
-                    {timeLeft === 0 && (
+                    {timeLeft === 0 ? (
                       <p className="text-[11px] text-rose-400 font-semibold pt-1">
-                        ⚠️ Code expired! WhatsApp codes are valid for 60 seconds.
+                        ⚠️ Code expired! WhatsApp pairing codes expire after 2 minutes.
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-emerald-300/80 pt-0.5">
+                        App is actively listening — as soon as you enter this code, screen will auto-connect!
                       </p>
                     )}
                   </div>
@@ -298,7 +344,7 @@ export const WhatsAppGatewayCard: React.FC = () => {
                       className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-emerald-300 font-bold py-2 rounded-xl text-[11px] flex items-center justify-center space-x-1.5 transition-all"
                     >
                       {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copied ? 'Copied!' : 'Copy Code'}</span>
+                      <span>{copied ? 'Copied Code!' : 'Copy Code'}</span>
                     </button>
 
                     <a
@@ -328,13 +374,13 @@ export const WhatsAppGatewayCard: React.FC = () => {
                       onClick={() => handleGeneratePairingCode()}
                       className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-[11px] transition-all"
                     >
-                      Get New Code
+                      Get New Fresh Code
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={handleResetSession}
-                      className="w-full text-center text-[10px] text-slate-400 hover:text-amber-400 pt-1"
+                      className="w-full text-center text-[10px] text-slate-400 hover:text-amber-400 pt-1 underline"
                     >
                       Got "Couldn't link device"? Click here to reset session &amp; retry
                     </button>
