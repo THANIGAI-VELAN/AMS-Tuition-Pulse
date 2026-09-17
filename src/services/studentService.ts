@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { Student, ClassName } from '../types/database.types'
+import { Student, ClassName, FeeStatus } from '../types/database.types'
 import { getLocalStudents, saveLocalStudents } from '../utils/offlineStorage'
 import { withTimeout } from '../utils/asyncUtils'
 
@@ -25,7 +25,21 @@ export const fetchStudents = async (className?: ClassName): Promise<Student[]> =
       return getCachedStudents(className)
     }
 
-    const students = (res.data || []) as Student[]
+    const currentCached = getCachedStudents()
+    const rawStudents = (res.data || []) as Student[]
+    
+    // Merge remote data with local cache ensuring joining_date, monthly_fee, and fee_status are preserved
+    const students: Student[] = rawStudents.map(remote => {
+      const local = currentCached.find(c => c.id === remote.id)
+      return {
+        ...local,
+        ...remote,
+        joining_date: remote.joining_date || local?.joining_date || remote.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        monthly_fee: remote.monthly_fee ?? local?.monthly_fee ?? 1500,
+        fee_status: (remote.fee_status || local?.fee_status || 'PENDING') as FeeStatus
+      }
+    })
+
     if (!className) {
       inMemoryStudents = students
       saveLocalStudents(students)
@@ -38,7 +52,6 @@ export const fetchStudents = async (className?: ClassName): Promise<Student[]> =
 
 export const fetchStudentById = async (id: string): Promise<Student | null> => {
   const cached = getCachedStudents().find(s => s.id === id)
-  if (cached) return cached
 
   try {
     const res = await withTimeout(
@@ -47,12 +60,27 @@ export const fetchStudentById = async (id: string): Promise<Student | null> => {
     )
 
     if (res.error || !res.data) {
-      return getCachedStudents().find(s => s.id === id) || null
+      return cached || null
     }
 
-    return res.data as Student
+    const remote = res.data as Student
+    const merged: Student = {
+      ...cached,
+      ...remote,
+      joining_date: remote.joining_date || cached?.joining_date || remote.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+      monthly_fee: remote.monthly_fee ?? cached?.monthly_fee ?? 1500,
+      fee_status: (remote.fee_status || cached?.fee_status || 'PENDING') as FeeStatus
+    }
+    
+    // Update cached student in list
+    const current = getCachedStudents()
+    const next = current.map(s => s.id === id ? merged : s)
+    inMemoryStudents = next
+    saveLocalStudents(next)
+
+    return merged
   } catch {
-    return getCachedStudents().find(s => s.id === id) || null
+    return cached || null
   }
 }
 
@@ -61,6 +89,9 @@ export const createStudent = async (studentData: Omit<Student, 'id' | 'created_a
   const now = new Date().toISOString()
   const fallbackStudent: Student = {
     ...studentData,
+    joining_date: studentData.joining_date || now.split('T')[0],
+    monthly_fee: Number(studentData.monthly_fee) || 1500,
+    fee_status: studentData.fee_status || 'PENDING',
     id: newUuid,
     created_at: now,
     updated_at: now,
@@ -72,30 +103,58 @@ export const createStudent = async (studentData: Omit<Student, 'id' | 'created_a
   inMemoryStudents = next
   saveLocalStudents(next)
 
-  // 2. Direct Supabase insert (only passing columns present in remote Supabase table)
+  // 2. Direct Supabase insert with full payload
   try {
-    const supabasePayload = {
+    const fullPayload = {
       name: studentData.name,
       class_name: studentData.class_name,
       parent_phone: studentData.parent_phone,
       whatsapp_phone: studentData.whatsapp_phone || studentData.parent_phone,
       school: studentData.school || '',
+      joining_date: fallbackStudent.joining_date,
+      monthly_fee: fallbackStudent.monthly_fee,
+      fee_status: fallbackStudent.fee_status,
       active: studentData.active ?? true
     }
 
-    const res = await withTimeout(
+    let res = await withTimeout(
       supabase
         .from('students')
-        .insert([supabasePayload])
+        .insert([fullPayload])
         .select()
         .single(),
       5000
     )
 
+    // Fallback if remote schema doesn't yet have extended columns
     if (res.error) {
-      console.error('Supabase create notice:', res.error.message)
-    } else if (res.data) {
-      const created = { ...fallbackStudent, ...(res.data as Student) }
+      console.warn('Supabase create extended insert notice:', res.error.message)
+      const basePayload = {
+        name: studentData.name,
+        class_name: studentData.class_name,
+        parent_phone: studentData.parent_phone,
+        whatsapp_phone: studentData.whatsapp_phone || studentData.parent_phone,
+        school: studentData.school || '',
+        active: studentData.active ?? true
+      }
+      res = await withTimeout(
+        supabase
+          .from('students')
+          .insert([basePayload])
+          .select()
+          .single(),
+        5000
+      )
+    }
+
+    if (!res.error && res.data) {
+      const created: Student = {
+        ...fallbackStudent,
+        ...(res.data as Student),
+        joining_date: (res.data as Student).joining_date || fallbackStudent.joining_date,
+        monthly_fee: (res.data as Student).monthly_fee ?? fallbackStudent.monthly_fee,
+        fee_status: (res.data as Student).fee_status || fallbackStudent.fee_status
+      }
       const updatedList = next.map(s => s.id === fallbackStudent.id ? created : s)
       inMemoryStudents = updatedList
       saveLocalStudents(updatedList)
@@ -120,21 +179,41 @@ export const updateStudent = async (id: string, studentData: Partial<Student>): 
   saveLocalStudents(next)
 
   try {
-    // Strip out client-only metadata before sending to Supabase table
-    const { monthly_fee, joining_date, fee_status, students, ...supabaseUpdatePayload } = studentData as any
+    const { students, ...payloadToSend } = studentData as any
 
-    const res = await withTimeout(
+    let res = await withTimeout(
       supabase
         .from('students')
-        .update({ ...supabaseUpdatePayload, updated_at: now })
+        .update({ ...payloadToSend, updated_at: now })
         .eq('id', id)
         .select()
         .single(),
       5000
     )
 
+    // Fallback if remote schema doesn't yet have extended columns
+    if (res.error) {
+      console.warn('Supabase update extended notice:', res.error.message)
+      const { monthly_fee, joining_date, fee_status, ...basePayload } = payloadToSend
+      res = await withTimeout(
+        supabase
+          .from('students')
+          .update({ ...basePayload, updated_at: now })
+          .eq('id', id)
+          .select()
+          .single(),
+        5000
+      )
+    }
+
     if (!res.error && res.data) {
-      const synced = { ...updated, ...(res.data as Student) }
+      const synced: Student = {
+        ...updated,
+        ...(res.data as Student),
+        joining_date: (res.data as Student).joining_date || updated.joining_date,
+        monthly_fee: (res.data as Student).monthly_fee ?? updated.monthly_fee,
+        fee_status: (res.data as Student).fee_status || updated.fee_status
+      }
       const syncedList = next.map(s => s.id === id ? synced : s)
       inMemoryStudents = syncedList
       saveLocalStudents(syncedList)

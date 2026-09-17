@@ -80,7 +80,15 @@ export const fetchFeeRecordsForStudent = async (
   let y = startYear
   let m = startMonth
 
-  while (y < currentYear || (y === currentYear && m <= currentMonth)) {
+  const isBeforeOrEqualCurrent = (yr: number, mo: number) => {
+    return yr < currentYear || (yr === currentYear && mo <= currentMonth)
+  }
+
+  // Ensure we at least process the starting month
+  let hasProcessedStart = false
+
+  while (isBeforeOrEqualCurrent(y, m) || (!hasProcessedStart && y === startYear && m === startMonth)) {
+    hasProcessedStart = true
     const existing = records.find(r => r.year === y && r.month === m)
     if (existing) {
       generatedRecords.push(existing)
@@ -99,6 +107,10 @@ export const fetchFeeRecordsForStudent = async (
         updated_at: new Date().toISOString()
       }
       generatedRecords.push(newRecord)
+    }
+
+    if (!isBeforeOrEqualCurrent(y, m)) {
+      break
     }
 
     m++
@@ -151,13 +163,14 @@ export const updateFeeRecord = async (
           year: updatedRecord.year,
           amount_due: updatedRecord.amount_due,
           amount_paid: updatedRecord.amount_paid,
-          payment_date: updatedRecord.payment_date,
-          status: updatedRecord.status
-        }),
+          payment_date: updatedRecord.payment_date || null,
+          status: updatedRecord.status,
+          updated_at: nowIso
+        }, { onConflict: 'student_id,month,year' }),
       3000
     )
-  } catch {
-    // offline fallback
+  } catch (err) {
+    console.warn('Supabase fee update notice:', err)
   }
 
   return updatedRecord
@@ -191,6 +204,27 @@ export const addCustomFeeRecord = async (
   const next = [...current.filter(f => !(f.student_id === studentId && f.month === month && f.year === year)), newFee]
   inMemoryFeeRecords = next
   saveLocalFeeRecords(next)
+
+  // Sync to Supabase
+  try {
+    await withTimeout(
+      supabase
+        .from('fees')
+        .upsert({
+          student_id: studentId,
+          month,
+          year,
+          amount_due: amountDue,
+          amount_paid: status === 'PAID' ? amountDue : 0,
+          payment_date: status === 'PAID' ? nowIso : null,
+          status,
+          updated_at: nowIso
+        }, { onConflict: 'student_id,month,year' }),
+      3000
+    )
+  } catch (err) {
+    console.warn('Supabase add fee notice:', err)
+  }
 
   return newFee
 }

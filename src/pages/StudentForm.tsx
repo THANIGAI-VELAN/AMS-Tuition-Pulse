@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { createStudent, fetchStudentById, updateStudent, deleteStudent } from '../services/studentService'
+import { fetchFeeRecordsForStudent, updateFeeRecord, addCustomFeeRecord } from '../services/feeService'
 import { ClassName, FeeStatus } from '../types/database.types'
 import { ArrowLeft, Save, User, Phone, School, DollarSign, ShieldCheck, Calendar } from 'lucide-react'
 
@@ -15,7 +16,7 @@ export const StudentForm: React.FC = () => {
   const [whatsappPhone, setWhatsappPhone] = useState('')
   const [school, setSchool] = useState('')
   const [joiningDate, setJoiningDate] = useState<string>(() => new Date().toISOString().split('T')[0])
-  const [monthlyFee, setMonthlyFee] = useState<number>(1500)
+  const [monthlyFee, setMonthlyFee] = useState<number | string>(1500)
   const [feeStatus, setFeeStatus] = useState<FeeStatus>('PENDING')
   const [active, setActive] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -42,26 +43,53 @@ export const StudentForm: React.FC = () => {
     e.preventDefault()
     setSaving(true)
 
+    const parsedFee = Number(monthlyFee) || 1500
+
     const payload = {
-      name,
+      name: name.trim(),
       class_name: className,
-      parent_phone: parentPhone,
-      whatsapp_phone: whatsappPhone || parentPhone,
-      school,
-      joining_date: joiningDate,
-      monthly_fee: Number(monthlyFee) || 0,
+      parent_phone: parentPhone.trim(),
+      whatsapp_phone: (whatsappPhone || parentPhone).trim(),
+      school: school.trim(),
+      joining_date: joiningDate || new Date().toISOString().split('T')[0],
+      monthly_fee: parsedFee,
       fee_status: feeStatus,
       active
     }
 
-    if (isEdit && id) {
-      await updateStudent(id, payload)
-    } else {
-      await createStudent(payload)
+    try {
+      if (isEdit && id) {
+        const updated = await updateStudent(id, payload)
+        if (updated) {
+          await fetchFeeRecordsForStudent(id, payload.joining_date, parsedFee)
+          const now = new Date()
+          const currentMonth = now.getMonth() + 1
+          const currentYear = now.getFullYear()
+          await updateFeeRecord(`fee_${id}_${currentYear}_${currentMonth}`, {
+            status: feeStatus,
+            amount_due: parsedFee,
+            amount_paid: feeStatus === 'PAID' ? parsedFee : 0,
+            payment_date: feeStatus === 'PAID' ? new Date().toISOString() : undefined
+          })
+        }
+      } else {
+        const created = await createStudent(payload)
+        if (created && created.id) {
+          await fetchFeeRecordsForStudent(created.id, payload.joining_date, parsedFee)
+          const now = new Date()
+          const currentMonth = now.getMonth() + 1
+          const currentYear = now.getFullYear()
+          if (feeStatus === 'PAID') {
+            await addCustomFeeRecord(created.id, currentMonth, currentYear, parsedFee, 'PAID')
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Save student error:', err)
+    } finally {
+      setSaving(false)
+      navigate('/students')
     }
-
-    setSaving(false)
-    navigate('/students')
   }
 
   return (
@@ -184,7 +212,7 @@ export const StudentForm: React.FC = () => {
                 min="0"
                 step="50"
                 value={monthlyFee}
-                onChange={(e) => setMonthlyFee(Number(e.target.value))}
+                onChange={(e) => setMonthlyFee(e.target.value)}
                 placeholder="1500"
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
               />

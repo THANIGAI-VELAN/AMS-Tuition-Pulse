@@ -19,13 +19,19 @@ CREATE TABLE IF NOT EXISTS public.students (
     parent_phone TEXT NOT NULL,
     whatsapp_phone TEXT NOT NULL,
     school TEXT,
+    joining_date DATE DEFAULT CURRENT_DATE,
+    monthly_fee NUMERIC(10,2) DEFAULT 1500,
+    fee_status TEXT DEFAULT 'PENDING' CHECK (fee_status IN ('PENDING', 'PAID', 'PARTIAL', 'OVERDUE')),
     active BOOLEAN DEFAULT true NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- Migration support: Drop parent_name if it exists from older schema versions
+-- Migration support: Ensure extended columns exist if table was previously created
 ALTER TABLE public.students DROP COLUMN IF EXISTS parent_name;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS joining_date DATE DEFAULT CURRENT_DATE;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS monthly_fee NUMERIC(10,2) DEFAULT 1500;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS fee_status TEXT DEFAULT 'PENDING';
 
 -- Table: attendance
 CREATE TABLE IF NOT EXISTS public.attendance (
@@ -65,7 +71,8 @@ CREATE TABLE IF NOT EXISTS public.fees (
     payment_date DATE,
     status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID', 'PARTIAL', 'OVERDUE')),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    CONSTRAINT unique_student_fee_month UNIQUE (student_id, month, year)
 );
 
 -- 3. INDEXES FOR PERFORMANCE
