@@ -80,18 +80,24 @@ SP Academy டியூஷன் மையத்திலிருந்து �
           </button>
         </div>
 
-        <div className="flex items-center space-x-2 border-b border-slate-800 pb-2 overflow-x-auto">
-          {['All', '10th', '11th', '12th'].map(cls => (
+        <div className="flex items-center space-x-2 border-b border-slate-800 pb-2 overflow-x-auto no-scrollbar">
+          {['All', '1st-8th', '9th', '10th', '11th', '12th', 'Bhavani'].map(cls => (
             <button
               key={cls}
               onClick={() => setSelectedClass(cls)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 whitespace-nowrap ${
                 selectedClass === cls
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                   : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
               }`}
             >
-              {cls === 'All' ? 'All Classes' : `${cls} Standard`}
+              {cls === 'All'
+                ? 'All Classes'
+                : cls === 'Bhavani'
+                ? 'Bhavani Branch'
+                : cls === '1st-8th'
+                ? '1st-8th Std'
+                : `${cls} Standard`}
             </button>
           ))}
         </div>
@@ -163,7 +169,11 @@ SP Academy டியூஷன் மையத்திலிருந்து �
                         </span>
                       </div>
                       <p className="text-xs text-slate-400 font-medium">
-                        {s.class_name} Standard • {s.school || 'Tuition Regular'}
+                        {s.class_name === 'Bhavani'
+                          ? 'Bhavani Branch'
+                          : s.class_name === '1st-8th'
+                          ? '1st - 8th Standard'
+                          : `${s.class_name} Standard`} • {s.school || 'Tuition Regular'}
                       </p>
                       <div className="flex items-center space-x-2 pt-1">
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${

@@ -102,20 +102,20 @@ export const StudentForm: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="p-4 space-y-4">
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-slate-300">Academic Class</label>
+          <label className="block text-xs font-semibold text-slate-300">Academic Class / Batch</label>
           <div className="grid grid-cols-3 gap-2">
-            {(['10th', '11th', '12th'] as ClassName[]).map(c => (
+            {(['1st-8th', '9th', '10th', '11th', '12th', 'Bhavani'] as ClassName[]).map(c => (
               <button
                 type="button"
                 key={c}
                 onClick={() => setClassName(c)}
-                className={`py-2.5 rounded-xl font-bold text-xs border transition-all ${
+                className={`py-2.5 px-1 rounded-xl font-bold text-xs border transition-all text-center truncate ${
                   className === c
                     ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-600/30'
                     : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                {c} Standard
+                {c === 'Bhavani' ? 'Bhavani' : c === '1st-8th' ? '1st-8th Std' : `${c} Std`}
               </button>
             ))}
           </div>

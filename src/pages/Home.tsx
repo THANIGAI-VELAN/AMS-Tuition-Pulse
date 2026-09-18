@@ -71,11 +71,11 @@ export const Home: React.FC = () => {
   const totalStudentsCount = students.length
 
   const classStats = useMemo(() => {
-    const classes: ClassName[] = ['10th', '11th', '12th']
-    const stats: Record<ClassName, { total: number; marked: boolean; present: number; absent: number }> = {
-      '10th': { total: 0, marked: false, present: 0, absent: 0 },
-      '11th': { total: 0, marked: false, present: 0, absent: 0 },
-      '12th': { total: 0, marked: false, present: 0, absent: 0 },
+    const classes: ClassName[] = ['1st-8th', '9th', '10th', '11th', '12th', 'Bhavani']
+    const stats = {} as Record<ClassName, { total: number; marked: boolean; present: number; absent: number }>
+    
+    for (const cls of classes) {
+      stats[cls] = { total: 0, marked: false, present: 0, absent: 0 }
     }
 
     for (const cls of classes) {
@@ -109,9 +109,12 @@ export const Home: React.FC = () => {
   const sentCount = notifications.filter(n => n.status === 'Sent').length
 
   const classCards: { className: ClassName; title: string; timing: string }[] = [
-    { className: '10th', title: '10th Standard', timing: '04:00 PM - 05:30 PM' },
-    { className: '11th', title: '11th Standard', timing: '05:30 PM - 07:00 PM' },
-    { className: '12th', title: '12th Standard', timing: '07:00 PM - 08:30 PM' },
+    { className: '1st-8th', title: '1st - 8th Standard', timing: 'Junior Batch' },
+    { className: '9th', title: '9th Standard', timing: 'Secondary Batch' },
+    { className: '10th', title: '10th Standard', timing: 'Board Batch' },
+    { className: '11th', title: '11th Standard', timing: 'Higher Sec Batch' },
+    { className: '12th', title: '12th Standard', timing: 'Board Batch' },
+    { className: 'Bhavani', title: 'Bhavani Branch', timing: 'Branch Academy' },
   ]
 
   return (
@@ -130,7 +133,7 @@ export const Home: React.FC = () => {
           </h2>
           <p className="text-xs text-slate-400">
             {totalStudentsCount > 0
-              ? `${totalStudentsCount} student${totalStudentsCount > 1 ? 's' : ''} enrolled across 3 batches`
+              ? `${totalStudentsCount} student${totalStudentsCount > 1 ? 's' : ''} enrolled across 6 batches / branches`
               : 'Welcome! Add students or start taking class attendance below'}
           </p>
         </div>

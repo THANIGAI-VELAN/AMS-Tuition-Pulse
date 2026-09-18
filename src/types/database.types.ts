@@ -1,4 +1,25 @@
-export type ClassName = '10th' | '11th' | '12th'
+export type ClassName = '1st-8th' | '9th' | '10th' | '11th' | '12th' | 'Bhavani'
+
+export const ALL_CLASSES: ClassName[] = ['1st-8th', '9th', '10th', '11th', '12th', 'Bhavani']
+
+export const CLASS_DISPLAY_NAMES: Record<ClassName, string> = {
+  '1st-8th': '1st - 8th Standard',
+  '9th': '9th Standard',
+  '10th': '10th Standard',
+  '11th': '11th Standard',
+  '12th': '12th Standard',
+  'Bhavani': 'Bhavani Branch'
+}
+
+export const CLASS_SHORT_NAMES: Record<ClassName, string> = {
+  '1st-8th': '1st-8th Std',
+  '9th': '9th Std',
+  '10th': '10th Std',
+  '11th': '11th Std',
+  '12th': '12th Std',
+  'Bhavani': 'Bhavani'
+}
+
 export type AttendanceStatus = 'PRESENT' | 'ABSENT'
 export type NotificationStatus = 'Pending' | 'Scheduled' | 'Sent' | 'Failed' | 'Cancelled'
 export type FeeStatus = 'PENDING' | 'PAID' | 'PARTIAL' | 'OVERDUE'

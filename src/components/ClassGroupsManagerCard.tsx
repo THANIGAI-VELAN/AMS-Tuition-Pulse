@@ -93,7 +93,7 @@ export const ClassGroupsManagerCard: React.FC = () => {
     setLoadingClass(null)
   }
 
-  const classes: ClassName[] = ['10th', '11th', '12th']
+  const classes: ClassName[] = ['1st-8th', '9th', '10th', '11th', '12th', 'Bhavani']
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
@@ -132,6 +132,7 @@ export const ClassGroupsManagerCard: React.FC = () => {
           const group = classGroups.find(g => g.class_name === cls)
           const activeCount = students.filter(s => s.class_name === cls && s.active).length
           const isLoading = loadingClass === cls
+          const classTitle = cls === 'Bhavani' ? 'Bhavani Branch' : cls === '1st-8th' ? '1st - 8th Standard' : `${cls} Standard`
 
           return (
             <div
@@ -140,7 +141,7 @@ export const ClassGroupsManagerCard: React.FC = () => {
             >
               <div className="space-y-0.5">
                 <div className="flex items-center space-x-2">
-                  <span className="font-bold text-xs text-white">{cls} Standard</span>
+                  <span className="font-bold text-xs text-white">{classTitle}</span>
                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${
                     group
                       ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
@@ -236,7 +237,7 @@ export const ClassGroupsManagerCard: React.FC = () => {
                         : 'bg-slate-950 border-slate-800 text-slate-400'
                     }`}
                   >
-                    {c} Std
+                    {c === 'Bhavani' ? 'Bhavani' : c === '1st-8th' ? '1st-8th Std' : `${c} Std`}
                   </button>
                 ))}
               </div>

@@ -29,11 +29,11 @@ export const Analytics: React.FC = () => {
   }, [todayStr])
 
   const classData = React.useMemo(() => {
-    const classes: ClassName[] = ['10th', '11th', '12th']
-    const res: Record<ClassName, { total: number; present: number; absent: number; rate: number }> = {
-      '10th': { total: 0, present: 0, absent: 0, rate: 100 },
-      '11th': { total: 0, present: 0, absent: 0, rate: 100 },
-      '12th': { total: 0, present: 0, absent: 0, rate: 100 },
+    const classes: ClassName[] = ['1st-8th', '9th', '10th', '11th', '12th', 'Bhavani']
+    const res = {} as Record<ClassName, { total: number; present: number; absent: number; rate: number }>
+    
+    for (const cls of classes) {
+      res[cls] = { total: 0, present: 0, absent: 0, rate: 100 }
     }
 
     for (const cls of classes) {
@@ -93,7 +93,7 @@ export const Analytics: React.FC = () => {
           </div>
           <p className="text-[11px] text-blue-200/80">
             {totalEnrolled > 0
-              ? `Daily roll call attendance calculated across all ${totalEnrolled} enrolled students.`
+              ? `Daily roll call attendance calculated across all ${totalEnrolled} enrolled students in 6 batches.`
               : 'Add students and take daily roll calls to view calculated attendance rates.'}
           </p>
         </div>
@@ -105,12 +105,13 @@ export const Analytics: React.FC = () => {
           </h3>
 
           <div className="space-y-3">
-            {(['12th', '11th', '10th'] as ClassName[]).map(cls => {
+            {(['1st-8th', '9th', '10th', '11th', '12th', 'Bhavani'] as ClassName[]).map(cls => {
               const d = classData[cls]
+              const title = cls === 'Bhavani' ? 'Bhavani Branch' : cls === '1st-8th' ? '1st - 8th Standard' : `${cls} Standard`
               return (
                 <div key={cls}>
                   <div className="flex justify-between text-xs font-semibold mb-1">
-                    <span className="text-white">{cls} Standard ({d.total} Students)</span>
+                    <span className="text-white">{title} ({d.total} Students)</span>
                     <span className="text-emerald-400 font-bold">{d.rate}%</span>
                   </div>
                   <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">

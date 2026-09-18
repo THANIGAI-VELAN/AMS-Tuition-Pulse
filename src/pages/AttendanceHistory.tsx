@@ -61,20 +61,20 @@ export const AttendanceHistory: React.FC = () => {
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-3 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-300">Select Class</span>
-            <div className="flex items-center space-x-1.5">
-              {(['10th', '11th', '12th'] as ClassName[]).map(cls => (
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-300 block">Select Academic Class</span>
+            <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 no-scrollbar">
+              {(['1st-8th', '9th', '10th', '11th', '12th', 'Bhavani'] as ClassName[]).map(cls => (
                 <button
                   key={cls}
                   onClick={() => setSelectedClass(cls)}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 whitespace-nowrap ${
                     selectedClass === cls
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                       : 'bg-slate-800 text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  {cls}
+                  {cls === 'Bhavani' ? 'Bhavani' : cls === '1st-8th' ? '1st-8th Std' : `${cls} Std`}
                 </button>
               ))}
             </div>
@@ -95,7 +95,9 @@ export const AttendanceHistory: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-between text-xs font-semibold px-1">
-          <span className="text-slate-400">{selectedClass} Standard • {selectedDate}</span>
+          <span className="text-slate-400">
+            {selectedClass === 'Bhavani' ? 'Bhavani Branch' : selectedClass === '1st-8th' ? '1st - 8th Standard' : `${selectedClass} Standard`} • {selectedDate}
+          </span>
           <div className="space-x-2">
             <span className="text-emerald-400">
               {attendanceRecords.filter(r => r.status === 'PRESENT').length} Present

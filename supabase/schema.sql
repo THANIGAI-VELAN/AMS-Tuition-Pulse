@@ -15,7 +15,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS public.students (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
-    class_name TEXT NOT NULL CHECK (class_name IN ('10th', '11th', '12th')),
+    class_name TEXT NOT NULL CHECK (class_name IN ('1st-8th', '9th', '10th', '11th', '12th', 'Bhavani')),
     parent_phone TEXT NOT NULL,
     whatsapp_phone TEXT NOT NULL,
     school TEXT,
@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS public.students (
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
+
+-- Migration support: Update CHECK constraint to support all 6 classes
+ALTER TABLE public.students DROP CONSTRAINT IF EXISTS students_class_name_check;
+ALTER TABLE public.students ADD CONSTRAINT students_class_name_check CHECK (class_name IN ('1st-8th', '9th', '10th', '11th', '12th', 'Bhavani'));
 
 -- Migration support: Ensure extended columns exist if table was previously created
 ALTER TABLE public.students DROP COLUMN IF EXISTS parent_name;
@@ -75,10 +79,10 @@ CREATE TABLE IF NOT EXISTS public.fees (
     CONSTRAINT unique_student_fee_month UNIQUE (student_id, month, year)
 );
 
--- Table: class_groups (WhatsApp Group mapping for 10th, 11th, 12th)
+-- Table: class_groups (WhatsApp Group mapping for all 6 batches)
 CREATE TABLE IF NOT EXISTS public.class_groups (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    class_name TEXT NOT NULL UNIQUE CHECK (class_name IN ('10th', '11th', '12th')),
+    class_name TEXT NOT NULL UNIQUE CHECK (class_name IN ('1st-8th', '9th', '10th', '11th', '12th', 'Bhavani')),
     group_jid TEXT NOT NULL,
     group_name TEXT NOT NULL,
     invite_url TEXT,
@@ -86,6 +90,10 @@ CREATE TABLE IF NOT EXISTS public.class_groups (
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
+
+-- Migration support: Update class_groups CHECK constraint
+ALTER TABLE public.class_groups DROP CONSTRAINT IF EXISTS class_groups_class_name_check;
+ALTER TABLE public.class_groups ADD CONSTRAINT class_groups_class_name_check CHECK (class_name IN ('1st-8th', '9th', '10th', '11th', '12th', 'Bhavani'));
 
 -- 3. INDEXES FOR PERFORMANCE
 CREATE INDEX IF NOT EXISTS idx_students_class ON public.students(class_name);

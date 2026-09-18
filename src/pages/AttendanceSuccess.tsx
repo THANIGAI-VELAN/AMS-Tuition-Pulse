@@ -73,7 +73,7 @@ export const AttendanceSuccess: React.FC = () => {
             Attendance Recorded!
           </h1>
           <p className="text-xs text-slate-400 font-medium">
-            {className} Standard • {format(new Date(), 'dd MMMM yyyy')}
+            {className === 'Bhavani' ? 'Bhavani Branch' : className === '1st-8th' ? '1st - 8th Standard' : `${className} Standard`} • {format(new Date(), 'dd MMMM yyyy')}
           </p>
         </div>
 

@@ -340,18 +340,20 @@ export const CustomMessage: React.FC = () => {
           <div className="space-y-4">
             {/* Class Tabs */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300">Target Academic Class (வகுப்பு)</label>
+              <label className="block text-xs font-semibold text-slate-300">Target Academic Class / Batch (வகுப்பு)</label>
               <div className="grid grid-cols-3 gap-2">
-                {(['10th', '11th', '12th'] as ClassName[]).map(c => {
+                {(['1st-8th', '9th', '10th', '11th', '12th', 'Bhavani'] as ClassName[]).map(c => {
                   const count = students.filter(s => s.class_name === c && s.active).length
                   const hasGroup = classGroups.some(g => g.class_name === c)
+                  const label = c === 'Bhavani' ? 'Bhavani' : c === '1st-8th' ? '1st-8th Std' : `${c} Std`
+                  const title = c === 'Bhavani' ? 'Bhavani Branch' : c === '1st-8th' ? '1st - 8th Standard' : `${c} Standard`
                   return (
                     <button
                       type="button"
                       key={c}
                       onClick={() => {
                         setSelectedClass(c)
-                        setMessageText(getTamilClassExamScheduleMessage(`${c} Standard`))
+                        setMessageText(getTamilClassExamScheduleMessage(title))
                       }}
                       className={`p-2.5 rounded-2xl font-bold text-xs border transition-all text-left flex flex-col justify-between ${
                         selectedClass === c
@@ -360,8 +362,8 @@ export const CustomMessage: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-center justify-between w-full">
-                        <span className="text-sm">{c} Std</span>
-                        <span className={`w-2 h-2 rounded-full ${hasGroup ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                        <span className="text-xs font-extrabold truncate">{label}</span>
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${hasGroup ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                       </div>
                       <span className="text-[10px] font-normal opacity-80 pt-1">{count} Parents</span>
                     </button>

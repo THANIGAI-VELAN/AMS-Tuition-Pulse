@@ -158,10 +158,10 @@ export const ClassAttendance: React.FC = () => {
           </button>
           <div className="text-center">
             <h1 className="font-extrabold text-base text-white tracking-tight">
-              {classVal} Standard Attendance
+              {classVal === 'Bhavani' ? 'Bhavani Branch Attendance' : classVal === '1st-8th' ? '1st - 8th Standard Attendance' : `${classVal} Standard Attendance`}
             </h1>
             <p className="text-xs text-blue-400 font-medium">
-              {formattedDateHeader} • {students.length} Students
+              {formattedDateHeader} • {students.length} Student{students.length !== 1 ? 's' : ''}
             </p>
           </div>
           <div className="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-bold">
