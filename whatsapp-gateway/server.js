@@ -19,6 +19,7 @@ dotenv.config()
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const AUTH_DIR = path.join(__dirname, 'auth_info_baileys')
+const MSG_STORE_FILE = path.join(AUTH_DIR, 'messages_cache.json')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -46,9 +47,89 @@ let reconnectTimer = null
 let isConnecting = false
 let isPairingInProgress = false
 
-// Message cache for multi-device encryption retries
-// Fixes "Waiting for this message. This may take a while" in WhatsApp
-const msgRetryCache = new Map()
+// ============================================================================
+// Robust Message Store for Multi-Device E2EE Retries
+// Resolves "Waiting for this message. This may take a while" in WhatsApp
+// ============================================================================
+const memoryMessageStore = new Map()
+
+// Load persisted messages from disk on startup
+function loadMessageStore() {
+  try {
+    if (fs.existsSync(MSG_STORE_FILE)) {
+      const data = JSON.parse(fs.readFileSync(MSG_STORE_FILE, 'utf-8'))
+      if (Array.isArray(data)) {
+        for (const item of data) {
+          if (item?.id && item?.message) {
+            memoryMessageStore.set(item.id, item.message)
+            if (item.remoteJid) {
+              memoryMessageStore.set(`${item.remoteJid}_${item.id}`, item.message)
+            }
+          }
+        }
+        console.log(`[GATEWAY] Loaded ${data.length} cached messages for retry resolution.`)
+      }
+    }
+  } catch (e) {
+    console.warn('[GATEWAY] Could not load message cache:', e.message)
+  }
+}
+
+// Persist messages periodically to disk (keeping last 1000 messages)
+let saveStoreTimeout = null
+function persistMessageStore() {
+  if (saveStoreTimeout) return
+  saveStoreTimeout = setTimeout(() => {
+    saveStoreTimeout = null
+    try {
+      if (!fs.existsSync(AUTH_DIR)) return
+      const list = []
+      for (const [key, msg] of memoryMessageStore.entries()) {
+        if (!key.includes('_')) {
+          list.push({ id: key, message: msg })
+        }
+      }
+      const trimmed = list.slice(-1000)
+      fs.writeFileSync(MSG_STORE_FILE, JSON.stringify(trimmed))
+    } catch (e) {
+      // ignore
+    }
+  }, 3000)
+}
+
+function saveMessageToStore(id, messageProto, remoteJid) {
+  if (!id || !messageProto) return
+  memoryMessageStore.set(id, messageProto)
+  if (remoteJid) {
+    memoryMessageStore.set(`${remoteJid}_${id}`, messageProto)
+  }
+  // Keep memory map bounded
+  if (memoryMessageStore.size > 2000) {
+    const firstKey = memoryMessageStore.keys().next().value
+    memoryMessageStore.delete(firstKey)
+  }
+  persistMessageStore()
+}
+
+function getStoredMessage(id, remoteJid) {
+  if (!id) return undefined
+  if (remoteJid && memoryMessageStore.has(`${remoteJid}_${id}`)) {
+    return memoryMessageStore.get(`${remoteJid}_${id}`)
+  }
+  if (memoryMessageStore.has(id)) {
+    return memoryMessageStore.get(id)
+  }
+  return undefined
+}
+
+// Retry counter cache store for Baileys
+const retryCounterMap = new Map()
+const msgRetryCounterCache = {
+  get: (key) => retryCounterMap.get(key),
+  set: (key, val) => retryCounterMap.set(key, val),
+  del: (key) => retryCounterMap.delete(key),
+  flushAll: () => retryCounterMap.clear()
+}
 
 function clearAuthSession() {
   try {
@@ -56,6 +137,8 @@ function clearAuthSession() {
       fs.rmSync(AUTH_DIR, { recursive: true, force: true })
       console.log(`[GATEWAY] Cleared auth session directory at: ${AUTH_DIR}`)
     }
+    memoryMessageStore.clear()
+    retryCounterMap.clear()
   } catch (err) {
     console.error('[GATEWAY] Error clearing auth session:', err)
   }
@@ -95,6 +178,8 @@ async function connectToWhatsApp(isPairingSetup = false) {
     const { version, isLatest } = await fetchLatestBaileysVersion()
     console.log(`[GATEWAY] Using Baileys v${version.join('.')}, isLatest: ${isLatest}`)
 
+    loadMessageStore()
+
     socket = makeWASocket({
       version,
       logger,
@@ -102,7 +187,8 @@ async function connectToWhatsApp(isPairingSetup = false) {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, logger)
       },
-      // Crucial: Use standard browser platform signature for reliable pairing codes
+      msgRetryCounterCache,
+      // Standard browser signature required for pairing code companion devices
       browser: Browsers.ubuntu('Chrome'),
       printQRInTerminal: false,
       connectTimeoutMs: 60000,
@@ -114,10 +200,21 @@ async function connectToWhatsApp(isPairingSetup = false) {
       markOnlineOnConnect: true,
       generateHighQualityLinkPreview: false,
       getMessage: async (key) => {
-        if (key.id && msgRetryCache.has(key.id)) {
-          return msgRetryCache.get(key.id)
+        if (!key?.id) return undefined
+        const found = getStoredMessage(key.id, key.remoteJid)
+        if (found) {
+          return found
         }
-        return { conversation: 'SP Academy Tuition Notification' }
+        return undefined
+      }
+    })
+
+    // Capture all incoming and outgoing messages to answer E2EE retry challenges
+    socket.ev.on('messages.upsert', async ({ messages }) => {
+      for (const msg of messages) {
+        if (msg.key?.id && msg.message) {
+          saveMessageToStore(msg.key.id, msg.message, msg.key.remoteJid)
+        }
       }
     })
 
@@ -361,13 +458,13 @@ app.post('/send', verifySecret, async (req, res) => {
     const isGroup = String(phone).endsWith('@g.us')
     const targetJid = isGroup ? phone : formatPhoneToJid(phone)
 
-    // High-speed deduplication protection (5-second throttle per identical message to same destination)
+    // Deduplication protection (3-second throttle per identical message to same destination)
     const dedupKey = `${targetJid}:${message.trim()}`
     const lastSentTime = sentMessageDeduplication.get(dedupKey)
     const now = Date.now()
 
-    if (lastSentTime && (now - lastSentTime < 5000)) {
-      console.log(`[GATEWAY] Skipped duplicate send to ${targetJid} within 5s.`)
+    if (lastSentTime && (now - lastSentTime < 3000)) {
+      console.log(`[GATEWAY] Skipped duplicate send to ${targetJid} within 3s.`)
       return res.json({ success: true, messageId: 'DEDUPLICATED_SKIP', note: 'Duplicate message skipped' })
     }
 
@@ -376,15 +473,12 @@ app.post('/send', verifySecret, async (req, res) => {
       sentMessageDeduplication.clear()
     }
 
+    // Send the message via socket
     const sent = await socket.sendMessage(targetJid, { text: message })
 
-    if (sent?.key?.id) {
-      // Cache message content for encryption retry handshakes
-      msgRetryCache.set(sent.key.id, { conversation: message })
-      if (msgRetryCache.size > 1000) {
-        const firstKey = msgRetryCache.keys().next().value
-        msgRetryCache.delete(firstKey)
-      }
+    if (sent?.key?.id && sent?.message) {
+      // Immediately cache full proto message for multi-device encryption retries
+      saveMessageToStore(sent.key.id, sent.message, targetJid)
     }
 
     console.log(`[GATEWAY] Message sent successfully to ${targetJid}. MsgId: ${sent?.key?.id || 'OK'}`)
