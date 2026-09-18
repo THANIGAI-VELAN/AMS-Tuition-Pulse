@@ -3,6 +3,8 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import QRCode from 'qrcode'
 import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import pino from 'pino'
 import makeWASocket, {
   useMultiFileAuthState,
@@ -13,6 +15,10 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys'
 
 dotenv.config()
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const AUTH_DIR = path.join(__dirname, 'auth_info_baileys')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -37,6 +43,8 @@ let latestQrCode = null
 let connectionStatus = 'DISCONNECTED' // DISCONNECTED | CONNECTING | CONNECTED
 let connectedUser = null
 let reconnectTimer = null
+let isConnecting = false
+let isPairingInProgress = false
 
 // Message cache for multi-device encryption retries
 // Fixes "Waiting for this message. This may take a while" in WhatsApp
@@ -44,22 +52,29 @@ const msgRetryCache = new Map()
 
 function clearAuthSession() {
   try {
-    if (fs.existsSync('auth_info_baileys')) {
-      fs.rmSync('auth_info_baileys', { recursive: true, force: true })
-      console.log('[GATEWAY] Cleared auth session directory.')
+    if (fs.existsSync(AUTH_DIR)) {
+      fs.rmSync(AUTH_DIR, { recursive: true, force: true })
+      console.log(`[GATEWAY] Cleared auth session directory at: ${AUTH_DIR}`)
     }
   } catch (err) {
     console.error('[GATEWAY] Error clearing auth session:', err)
   }
 }
 
-async function connectToWhatsApp() {
+async function connectToWhatsApp(isPairingSetup = false) {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer)
     reconnectTimer = null
   }
 
-  // Safely teardown any previous socket listeners and connection
+  if (isConnecting && !isPairingSetup) {
+    console.log('[GATEWAY] Connection already in progress, skipping duplicate call.')
+    return socket
+  }
+
+  isConnecting = true
+
+  // Safely teardown previous socket listeners and close old connection
   if (socket) {
     try {
       socket.ev.removeAllListeners('creds.update')
@@ -76,7 +91,7 @@ async function connectToWhatsApp() {
   console.log('[GATEWAY] Initializing WhatsApp connection...')
 
   try {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys')
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR)
     const { version, isLatest } = await fetchLatestBaileysVersion()
     console.log(`[GATEWAY] Using Baileys v${version.join('.')}, isLatest: ${isLatest}`)
 
@@ -87,7 +102,8 @@ async function connectToWhatsApp() {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, logger)
       },
-      browser: Browsers.macOS('Desktop'),
+      // Crucial: Use standard browser platform signature for reliable pairing codes
+      browser: Browsers.ubuntu('Chrome'),
       printQRInTerminal: false,
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
@@ -99,8 +115,7 @@ async function connectToWhatsApp() {
       generateHighQualityLinkPreview: false,
       getMessage: async (key) => {
         if (key.id && msgRetryCache.has(key.id)) {
-          const cached = msgRetryCache.get(key.id)
-          return cached
+          return msgRetryCache.get(key.id)
         }
         return { conversation: 'SP Academy Tuition Notification' }
       }
@@ -110,14 +125,14 @@ async function connectToWhatsApp() {
       try {
         await saveCreds()
       } catch (err) {
-        console.error('[GATEWAY] Error saving creds:', err)
+        console.error('[GATEWAY] Error saving credentials:', err)
       }
     })
 
-    socket.ev.on('connection.update', (update) => {
+    socket.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update
 
-      if (qr) {
+      if (qr && !isPairingInProgress) {
         latestQrCode = qr
         if (connectionStatus !== 'CONNECTED') {
           connectionStatus = 'DISCONNECTED'
@@ -127,26 +142,36 @@ async function connectToWhatsApp() {
 
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.statusCode
-        const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401
-        const shouldReconnect = !isLoggedOut
-
         latestQrCode = null
+        isConnecting = false
 
-        console.log(`[GATEWAY] Connection closed (Status Code: ${statusCode}). Reconnect allowed: ${shouldReconnect}`)
+        // 515 = restartRequired (WhatsApp sends this when phone pairing succeeds to finalize registration)
+        const isRestartRequired = statusCode === DisconnectReason.restartRequired || statusCode === 515
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401
 
-        if (shouldReconnect) {
+        console.log(`[GATEWAY] Connection closed (Status Code: ${statusCode}). isRestartRequired: ${isRestartRequired}, isLoggedOut: ${isLoggedOut}`)
+
+        if (isRestartRequired) {
+          console.log('[GATEWAY] Pairing confirmed by device! Restarting with registered credentials...')
+          isPairingInProgress = false
           connectionStatus = 'CONNECTING'
-          // 515 = restartRequired (WhatsApp sends this when phone pairing succeeds to establish registered state)
-          const delay = statusCode === DisconnectReason.restartRequired ? 1000 : 2500
-          reconnectTimer = setTimeout(() => connectToWhatsApp(), delay)
-        } else {
-          console.log('[GATEWAY] Session logged out from phone. Resetting auth...')
+          reconnectTimer = setTimeout(() => connectToWhatsApp(), 1000)
+        } else if (isLoggedOut && !isPairingInProgress && state.creds.registered) {
+          // Only clear session if user explicitly unlinked an ALREADY registered session from their phone
+          console.log('[GATEWAY] Session unlinked from WhatsApp device. Resetting auth...')
           connectionStatus = 'DISCONNECTED'
           connectedUser = null
           clearAuthSession()
           reconnectTimer = setTimeout(() => connectToWhatsApp(), 2000)
+        } else {
+          // Any other network drop, timeout, or intermediate pairing reconnect -> Auto-reconnect!
+          console.log('[GATEWAY] Temporary connection drop. Reconnecting in 2.5s...')
+          connectionStatus = 'CONNECTING'
+          reconnectTimer = setTimeout(() => connectToWhatsApp(), 2500)
         }
       } else if (connection === 'open') {
+        isConnecting = false
+        isPairingInProgress = false
         connectionStatus = 'CONNECTED'
         latestQrCode = null
         const userJid = socket?.user?.id || ''
@@ -154,14 +179,19 @@ async function connectToWhatsApp() {
         console.log(`[GATEWAY] WhatsApp Connected Successfully! User Phone: +${connectedUser}`)
       }
     })
+
+    isConnecting = false
+    return socket
   } catch (err) {
     console.error('[GATEWAY] Error in connectToWhatsApp:', err)
+    isConnecting = false
     connectionStatus = 'CONNECTING'
     reconnectTimer = setTimeout(() => connectToWhatsApp(), 5000)
+    return null
   }
 }
 
-// 24/7 Keep-Alive Self Ping to prevent Render.com free tier from sleeping
+// 24/7 Keep-Alive Self Ping to prevent cloud servers (e.g. Render) from sleeping
 const SELF_PING_URL = process.env.RENDER_EXTERNAL_URL || 'https://tuition-pulse-gateway.onrender.com'
 setInterval(async () => {
   try {
@@ -172,7 +202,7 @@ setInterval(async () => {
   } catch (e) {
     // ignore
   }
-}, 7 * 60 * 1000) // Ping every 7 minutes
+}, 5 * 60 * 1000) // Ping every 5 minutes
 
 // Security Middleware
 const verifySecret = (req, res, next) => {
@@ -216,6 +246,7 @@ app.post('/reset', (req, res) => {
   connectionStatus = 'DISCONNECTED'
   connectedUser = null
   latestQrCode = null
+  isPairingInProgress = false
 
   if (socket) {
     try {
@@ -236,7 +267,7 @@ app.post('/reset', (req, res) => {
   res.json({ success: true, message: 'Session reset. Generating fresh session...' })
 })
 
-// 3.5 Pairing Code Endpoint (For Single-Device Linking on Mobile)
+// 3.5 Pairing Code Endpoint (For Phone Pairing without camera)
 app.post('/pair-code', async (req, res) => {
   const { phone } = req.body
   if (!phone) {
@@ -263,14 +294,16 @@ app.post('/pair-code', async (req, res) => {
   }
 
   try {
-    // Reset session to ensure fresh pairing keys & socket
+    isPairingInProgress = true
     console.log(`[GATEWAY] Requesting fresh pairing session for +${cleanPhone}...`)
-    clearAuthSession()
-    await connectToWhatsApp()
 
-    // Wait until the socket WebSocket connection opens (up to 8 seconds)
+    // Clean out old unregistered keys so we start with a clean pairing slate
+    clearAuthSession()
+    await connectToWhatsApp(true)
+
+    // Wait until the socket WebSocket connection opens (up to 10 seconds)
     let attempts = 0
-    while ((!socket || !socket.ws || socket.ws.readyState !== 1) && attempts < 32) {
+    while ((!socket || !socket.ws || socket.ws.readyState !== 1) && attempts < 40) {
       await new Promise(r => setTimeout(r, 250))
       attempts++
     }
@@ -279,17 +312,22 @@ app.post('/pair-code', async (req, res) => {
       throw new Error('Gateway socket failed to initialize')
     }
 
-    // Small delay to ensure handshake readiness
-    await new Promise(r => setTimeout(r, 600))
+    // Small delay to allow handshake packet readiness
+    await new Promise(r => setTimeout(r, 1000))
+
+    if (socket.authState?.creds?.registered) {
+      return res.json({ status: 'CONNECTED', message: 'WhatsApp is already connected!' })
+    }
 
     const code = await socket.requestPairingCode(cleanPhone)
     const formattedCode = code?.match(/.{1,4}/g)?.join('-') || code
     console.log(`[GATEWAY] Pairing code generated successfully for +${cleanPhone}: ${formattedCode}`)
     res.json({ success: true, pairingCode: formattedCode, rawCode: code, phone: cleanPhone })
   } catch (err) {
+    isPairingInProgress = false
     console.error('[GATEWAY] Error generating pairing code:', err)
     res.status(500).json({
-      error: err.message || 'Failed to generate pairing code from WhatsApp. Try resetting the session first.'
+      error: err.message || 'Failed to generate pairing code from WhatsApp. Please retry in a moment.'
     })
   }
 })
@@ -316,7 +354,7 @@ app.post('/send', verifySecret, async (req, res) => {
   }
 
   if (connectionStatus !== 'CONNECTED' || !socket) {
-    return res.status(503).json({ error: 'WhatsApp is not connected. Please scan QR code in settings.' })
+    return res.status(503).json({ error: 'WhatsApp is not connected. Please connect WhatsApp in settings.' })
   }
 
   try {

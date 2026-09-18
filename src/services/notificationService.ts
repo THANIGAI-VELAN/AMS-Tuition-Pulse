@@ -209,11 +209,12 @@ export const processPendingNotifications = async (): Promise<{ processed: number
 }
 
 export const DEFAULT_GATEWAY_URL = 'https://tuition-pulse-gateway.onrender.com'
+export const LOCAL_GATEWAY_URL = 'http://localhost:3001'
 
 export const getEffectiveGatewayUrl = (): string => {
   if (typeof window === 'undefined') return DEFAULT_GATEWAY_URL
   const stored = localStorage.getItem('WHATSAPP_GATEWAY_URL')
-  if (!stored || stored.includes('localhost')) {
+  if (!stored) {
     localStorage.setItem('WHATSAPP_GATEWAY_URL', DEFAULT_GATEWAY_URL)
     return DEFAULT_GATEWAY_URL
   }

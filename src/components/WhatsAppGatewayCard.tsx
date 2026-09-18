@@ -18,7 +18,8 @@ import {
   resetWhatsAppGatewaySession,
   GatewayStatusResponse,
   getEffectiveGatewayUrl,
-  DEFAULT_GATEWAY_URL
+  DEFAULT_GATEWAY_URL,
+  LOCAL_GATEWAY_URL
 } from '../services/notificationService'
 
 export const WhatsAppGatewayCard: React.FC = () => {
@@ -87,6 +88,11 @@ export const WhatsAppGatewayCard: React.FC = () => {
     const val = e.target.value
     setGatewayUrl(val)
     localStorage.setItem('WHATSAPP_GATEWAY_URL', val)
+  }
+
+  const handleSelectPresetUrl = (url: string) => {
+    setGatewayUrl(url)
+    localStorage.setItem('WHATSAPP_GATEWAY_URL', url)
   }
 
   const normalizedPhonePreview = (() => {
@@ -210,19 +216,33 @@ export const WhatsAppGatewayCard: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label className="text-[11px] text-slate-400 font-medium">Gateway Service URL:</label>
-            <button
-              type="button"
-              onClick={() => {
-                setGatewayUrl(DEFAULT_GATEWAY_URL)
-                localStorage.setItem('WHATSAPP_GATEWAY_URL', DEFAULT_GATEWAY_URL)
-              }}
-              className="text-[10px] text-emerald-400 hover:underline font-semibold"
-            >
-              Reset to Render Default
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => handleSelectPresetUrl(DEFAULT_GATEWAY_URL)}
+                className={`text-[10px] px-2 py-0.5 rounded-lg font-semibold transition-all ${
+                  gatewayUrl === DEFAULT_GATEWAY_URL
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+                }`}
+              >
+                Render Cloud
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectPresetUrl(LOCAL_GATEWAY_URL)}
+                className={`text-[10px] px-2 py-0.5 rounded-lg font-semibold transition-all ${
+                  gatewayUrl === LOCAL_GATEWAY_URL
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+                }`}
+              >
+                Localhost (3001)
+              </button>
+            </div>
           </div>
           <input
             type="text"
