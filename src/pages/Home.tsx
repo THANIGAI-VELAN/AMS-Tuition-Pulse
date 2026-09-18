@@ -13,7 +13,7 @@ import {
 } from '../services/notificationService'
 import { fetchAttendanceByDate, getCachedAttendance } from '../services/attendanceService'
 import { ClassName, Student, NotificationRecord, AttendanceRecord } from '../types/database.types'
-import { Users, Clock, ArrowRight, Zap, Send, ShieldCheck, ChevronRight, UserPlus, ClipboardCheck, MessageSquarePlus, AlertTriangle, CheckCircle, Smartphone } from 'lucide-react'
+import { Users, ArrowRight, Zap, Send, ShieldCheck, ChevronRight, UserPlus, ClipboardCheck, MessageSquarePlus, AlertTriangle, CheckCircle, Smartphone } from 'lucide-react'
 import { format } from 'date-fns'
 
 export const Home: React.FC = () => {
@@ -285,13 +285,6 @@ export const Home: React.FC = () => {
                         <span>{studentCount} Enrolled Student{studentCount !== 1 ? 's' : ''}</span>
                       </p>
                     </div>
-
-                    {/* <div className="text-right">
-                      <span className="text-[11px] font-medium text-slate-400 flex items-center justify-end space-x-1">
-                        <Clock className="w-3 h-3 text-slate-500" />
-                        <span>{c.timing}</span>
-                      </span>
-                    </div>*/}
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
