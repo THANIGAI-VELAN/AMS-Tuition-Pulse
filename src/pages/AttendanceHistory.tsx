@@ -142,8 +142,15 @@ export const AttendanceHistory: React.FC = () => {
                         {student.name.substring(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                           <h4 className="font-bold text-sm text-white">{student.name}</h4>
+                          <span className={`px-1.5 py-0.2 rounded-md text-[9px] font-extrabold border ${
+                            student.gender === 'FEMALE'
+                              ? 'bg-pink-500/20 text-pink-300 border-pink-500/30'
+                              : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                          }`}>
+                            {student.gender === 'FEMALE' ? '👧 Girl' : '👦 Boy'}
+                          </span>
                           {notif?.status === 'Sent' && (
                             <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                               WhatsApp Sent

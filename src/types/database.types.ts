@@ -23,6 +23,7 @@ export const CLASS_SHORT_NAMES: Record<ClassName, string> = {
 export type AttendanceStatus = 'PRESENT' | 'ABSENT'
 export type NotificationStatus = 'Pending' | 'Scheduled' | 'Sent' | 'Failed' | 'Cancelled'
 export type FeeStatus = 'PENDING' | 'PAID' | 'PARTIAL' | 'OVERDUE'
+export type Gender = 'MALE' | 'FEMALE'
 
 export interface Student {
   id: string
@@ -31,6 +32,7 @@ export interface Student {
   parent_phone: string
   whatsapp_phone: string
   school?: string
+  gender?: Gender
   monthly_fee?: number
   joining_date?: string
   fee_status?: FeeStatus

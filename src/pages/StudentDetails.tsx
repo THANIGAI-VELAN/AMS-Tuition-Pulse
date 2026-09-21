@@ -174,13 +174,24 @@ SP Academy டியூஷன் மையத்திலிருந்து �
       <main className="p-4 space-y-4">
         {/* Profile Overview Header Card */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 text-center space-y-3 shadow-xl">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-black text-xl flex items-center justify-center mx-auto shadow-lg shadow-blue-600/30">
+          <div className={`w-16 h-16 rounded-full text-white font-black text-xl flex items-center justify-center mx-auto shadow-lg ${
+            student.gender === 'FEMALE'
+              ? 'bg-gradient-to-br from-pink-600 to-rose-600 shadow-pink-600/30'
+              : 'bg-gradient-to-br from-blue-600 to-indigo-600 shadow-blue-600/30'
+          }`}>
             {student.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
           </div>
 
           <div>
-            <div className="flex items-center justify-center space-x-2">
+            <div className="flex items-center justify-center space-x-2 flex-wrap gap-y-1">
               <h2 className="text-lg font-extrabold text-white">{student.name}</h2>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                student.gender === 'FEMALE'
+                  ? 'bg-pink-500/20 text-pink-300 border-pink-500/30'
+                  : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+              }`}>
+                {student.gender === 'FEMALE' ? '👧 Girl' : '👦 Boy'}
+              </span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                 student.active
                   ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
@@ -189,8 +200,8 @@ SP Academy டியூஷன் மையத்திலிருந்து �
                 {student.active ? 'ACTIVE' : 'INACTIVE'}
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Class {student.class_name} Standard • {student.school || 'Regular Batch'}
+            <p className="text-xs text-slate-400 mt-1">
+              {student.class_name === 'Bhavani' ? 'Bhavani Branch' : student.class_name === '1st-8th' ? '1st - 8th Standard' : `${student.class_name} Standard`} • {student.school || 'Regular Batch'}
             </p>
           </div>
 

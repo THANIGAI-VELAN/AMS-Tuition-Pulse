@@ -1,22 +1,25 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { createStudent, fetchStudentById, updateStudent, deleteStudent } from '../services/studentService'
 import { fetchFeeRecordsForStudent, updateFeeRecord, addCustomFeeRecord } from '../services/feeService'
-import { ClassName, FeeStatus } from '../types/database.types'
-import { ArrowLeft, Save, User, Phone, School, DollarSign, ShieldCheck, Calendar } from 'lucide-react'
+import { ClassName, FeeStatus, Gender } from '../types/database.types'
+import { ArrowLeft, Save, User, Phone, School, DollarSign, ShieldCheck, Calendar, CheckCircle2 } from 'lucide-react'
 
 export const StudentForm: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const isEdit = !!id
   const navigate = useNavigate()
+  const location = useLocation()
+  const routerState = location.state as { className?: ClassName; gender?: Gender } | null
 
   const [name, setName] = useState('')
-  const [className, setClassName] = useState<ClassName>('12th')
+  const [className, setClassName] = useState<ClassName>(() => routerState?.className || '12th')
+  const [gender, setGender] = useState<Gender>(() => routerState?.gender || 'MALE')
   const [parentPhone, setParentPhone] = useState('')
   const [whatsappPhone, setWhatsappPhone] = useState('')
   const [school, setSchool] = useState('')
   const [joiningDate, setJoiningDate] = useState<string>(() => new Date().toISOString().split('T')[0])
-  const [monthlyFee, setMonthlyFee] = useState<number | string>(1500)
+  const [monthlyFee, setMonthlyFee] = useState<number | string>(950)
   const [feeStatus, setFeeStatus] = useState<FeeStatus>('PENDING')
   const [active, setActive] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -27,6 +30,7 @@ export const StudentForm: React.FC = () => {
         if (s) {
           setName(s.name)
           setClassName(s.class_name)
+          setGender(s.gender || 'MALE')
           setParentPhone(s.parent_phone)
           setWhatsappPhone(s.whatsapp_phone)
           setSchool(s.school || '')
@@ -48,6 +52,7 @@ export const StudentForm: React.FC = () => {
     const payload = {
       name: name.trim(),
       class_name: className,
+      gender,
       parent_phone: parentPhone.trim(),
       whatsapp_phone: (whatsappPhone || parentPhone).trim(),
       school: school.trim(),
@@ -133,6 +138,60 @@ export const StudentForm: React.FC = () => {
               placeholder="e.g. Priya Sundaram"
               className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
             />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-bold text-white">Student Gender & Attendance Section</label>
+            <span className="text-[11px] text-blue-400 font-semibold">Required for roll call split</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setGender('MALE')}
+              className={`p-3 rounded-2xl border transition-all text-left flex items-start space-x-2.5 ${
+                gender === 'MALE'
+                  ? 'bg-blue-600/20 border-blue-500 text-white shadow-lg shadow-blue-500/10 ring-2 ring-blue-500/40'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+              }`}
+            >
+              <span className="text-2xl mt-0.5">👦</span>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className={`font-extrabold text-xs ${gender === 'MALE' ? 'text-blue-300' : 'text-slate-300'}`}>
+                    Male (Boy)
+                  </span>
+                  {gender === 'MALE' && <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                  Boys Attendance Section
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setGender('FEMALE')}
+              className={`p-3 rounded-2xl border transition-all text-left flex items-start space-x-2.5 ${
+                gender === 'FEMALE'
+                  ? 'bg-pink-600/20 border-pink-500 text-white shadow-lg shadow-pink-500/10 ring-2 ring-pink-500/40'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+              }`}
+            >
+              <span className="text-2xl mt-0.5">👧</span>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className={`font-extrabold text-xs ${gender === 'FEMALE' ? 'text-pink-300' : 'text-slate-300'}`}>
+                    Female (Girl)
+                  </span>
+                  {gender === 'FEMALE' && <CheckCircle2 className="w-4 h-4 text-pink-400 shrink-0" />}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                  Girls Attendance Section
+                </p>
+              </div>
+            </button>
           </div>
         </div>
 

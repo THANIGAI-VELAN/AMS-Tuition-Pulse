@@ -10,6 +10,7 @@ export const StudentsDirectory: React.FC = () => {
   const navigate = useNavigate()
   const [students, setStudents] = useState<Student[]>(() => getCachedStudents())
   const [selectedClass, setSelectedClass] = useState<string>('All')
+  const [selectedGender, setSelectedGender] = useState<'All' | 'MALE' | 'FEMALE'>('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(() => getCachedStudents().length === 0)
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null)
@@ -30,10 +31,15 @@ export const StudentsDirectory: React.FC = () => {
 
   const filtered = students.filter(s => {
     const matchesClass = selectedClass === 'All' || s.class_name === selectedClass
+    const sGender = s.gender || 'MALE'
+    const matchesGender = selectedGender === 'All' || sGender === selectedGender
     const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.parent_phone.includes(searchQuery)
-    return matchesClass && matchesSearch
+    return matchesClass && matchesGender && matchesSearch
   })
+
+  const maleCount = students.filter(s => (s.gender || 'MALE') === 'MALE').length
+  const femaleCount = students.filter(s => s.gender === 'FEMALE').length
 
   const handleOpenWhatsApp = (student: Student) => {
     const phone = student.whatsapp_phone || student.parent_phone
@@ -67,12 +73,17 @@ SP Academy டியூஷன் மையத்திலிருந்து �
           <div>
             <h2 className="text-xl font-extrabold text-white tracking-tight">Students</h2>
             <p className="text-xs text-slate-400 font-medium">
-              {students.length} student{students.length !== 1 ? 's' : ''} enrolled
+              {students.length} enrolled ({maleCount} Boys, {femaleCount} Girls)
             </p>
           </div>
 
           <button
-            onClick={() => navigate('/students/add')}
+            onClick={() => navigate('/students/add', {
+              state: {
+                className: selectedClass !== 'All' ? selectedClass : '12th',
+                gender: selectedGender !== 'All' ? selectedGender : 'MALE'
+              }
+            })}
             className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center space-x-1.5 shadow-lg shadow-blue-600/30 transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
@@ -80,7 +91,8 @@ SP Academy டியூஷன் மையத்திலிருந்து �
           </button>
         </div>
 
-        <div className="flex items-center space-x-2 border-b border-slate-800 pb-2 overflow-x-auto no-scrollbar">
+        {/* Class Filter */}
+        <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar pb-1">
           {['All', '1st-8th', '9th', '10th', '11th', '12th', 'Bhavani'].map(cls => (
             <button
               key={cls}
@@ -100,6 +112,42 @@ SP Academy டியூஷன் மையத்திலிருந்து �
                 : `${cls} Standard`}
             </button>
           ))}
+        </div>
+
+        {/* Gender Filter Pills */}
+        <div className="flex items-center space-x-2 border-b border-slate-800 pb-2.5">
+          <button
+            onClick={() => setSelectedGender('All')}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+              selectedGender === 'All'
+                ? 'bg-slate-800 text-white border border-slate-700'
+                : 'bg-slate-950 text-slate-400 border border-slate-900 hover:text-white'
+            }`}
+          >
+            All Genders ({students.length})
+          </button>
+          <button
+            onClick={() => setSelectedGender('MALE')}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 ${
+              selectedGender === 'MALE'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-blue-300'
+            }`}
+          >
+            <span>👦 Boys</span>
+            <span className="text-[10px] opacity-80">({maleCount})</span>
+          </button>
+          <button
+            onClick={() => setSelectedGender('FEMALE')}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 ${
+              selectedGender === 'FEMALE'
+                ? 'bg-pink-600 text-white shadow-sm'
+                : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-pink-300'
+            }`}
+          >
+            <span>👧 Girls</span>
+            <span className="text-[10px] opacity-80">({femaleCount})</span>
+          </button>
         </div>
 
         {students.length > 0 && (
@@ -154,12 +202,23 @@ SP Academy டியூஷன் மையத்திலிருந்து �
                     onClick={() => navigate(`/students/${s.id}`)}
                     className="flex items-center space-x-3 cursor-pointer flex-1"
                   >
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-black text-sm flex items-center justify-center shadow-md shrink-0">
+                    <div className={`w-11 h-11 rounded-2xl text-white font-black text-sm flex items-center justify-center shadow-md shrink-0 ${
+                      s.gender === 'FEMALE'
+                        ? 'bg-gradient-to-br from-pink-600 to-rose-700'
+                        : 'bg-gradient-to-br from-blue-600 to-indigo-700'
+                    }`}>
                       {s.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                         <h3 className="font-bold text-sm text-white hover:text-blue-400 transition-colors">{s.name}</h3>
+                        <span className={`px-1.5 py-0.2 rounded-md text-[9px] font-extrabold border ${
+                          s.gender === 'FEMALE'
+                            ? 'bg-pink-500/20 text-pink-300 border-pink-500/30'
+                            : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                        }`}>
+                          {s.gender === 'FEMALE' ? '👧 Girl' : '👦 Boy'}
+                        </span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                           s.active
                             ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'

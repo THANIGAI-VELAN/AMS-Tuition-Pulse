@@ -92,6 +92,8 @@ export const ClassAttendance: React.FC = () => {
     }
   }, [classVal, todayStr])
 
+  const [selectedGenderTab, setSelectedGenderTab] = useState<'ALL' | 'MALE' | 'FEMALE'>('ALL')
+
   const toggleStatus = (studentId: string) => {
     setAttendanceMap(prev => ({
       ...prev,
@@ -107,14 +109,46 @@ export const ClassAttendance: React.FC = () => {
     setAttendanceMap(updated)
   }
 
+  const markBoysPresent = () => {
+    setAttendanceMap(prev => {
+      const next = { ...prev }
+      students.filter(s => (s.gender || 'MALE') === 'MALE').forEach(s => {
+        next[s.id] = 'PRESENT'
+      })
+      return next
+    })
+  }
+
+  const markGirlsPresent = () => {
+    setAttendanceMap(prev => {
+      const next = { ...prev }
+      students.filter(s => s.gender === 'FEMALE').forEach(s => {
+        next[s.id] = 'PRESENT'
+      })
+      return next
+    })
+  }
+
   const presentCount = Object.values(attendanceMap).filter(s => s === 'PRESENT').length
   const absentCount = Object.values(attendanceMap).filter(s => s === 'ABSENT').length
   const absentStudents = students.filter(s => attendanceMap[s.id] === 'ABSENT')
+
+  const maleStudents = students.filter(s => (s.gender || 'MALE') === 'MALE')
+  const femaleStudents = students.filter(s => s.gender === 'FEMALE')
+
+  const malePresentCount = maleStudents.filter(s => (attendanceMap[s.id] || 'PRESENT') === 'PRESENT').length
+  const maleAbsentCount = maleStudents.filter(s => attendanceMap[s.id] === 'ABSENT').length
+
+  const femalePresentCount = femaleStudents.filter(s => (attendanceMap[s.id] || 'PRESENT') === 'PRESENT').length
+  const femaleAbsentCount = femaleStudents.filter(s => attendanceMap[s.id] === 'ABSENT').length
 
   const filteredStudents = students.filter(s =>
     s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.parent_phone.includes(searchQuery)
   )
+
+  const filteredMaleStudents = filteredStudents.filter(s => (s.gender || 'MALE') === 'MALE')
+  const filteredFemaleStudents = filteredStudents.filter(s => s.gender === 'FEMALE')
 
   const handleConfirmSubmit = async () => {
     setSubmitting(true)
@@ -145,6 +179,96 @@ export const ClassAttendance: React.FC = () => {
 
   const dispatchTimeString = format(addSeconds(new Date(), 30), 'hh:mm:ss a')
 
+  const renderStudentItem = (student: Student) => {
+    const status = attendanceMap[student.id] || 'PRESENT'
+    const isPresent = status === 'PRESENT'
+    const isFemale = student.gender === 'FEMALE'
+    const sentNotif = notifications.find(n => 
+      n.student_id === student.id && 
+      n.status === 'Sent' && 
+      ((n.created_at && n.created_at.startsWith(todayStr)) || (n.scheduled_at && n.scheduled_at.startsWith(todayStr)))
+    )
+    const pendingNotif = notifications.find(n => 
+      n.student_id === student.id && 
+      n.status === 'Pending' && 
+      ((n.created_at && n.created_at.startsWith(todayStr)) || (n.scheduled_at && n.scheduled_at.startsWith(todayStr)))
+    )
+
+    return (
+      <div
+        key={student.id}
+        className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
+          isPresent
+            ? 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
+            : 'bg-rose-950/20 border-rose-800/40 shadow-lg shadow-rose-950/20'
+        }`}
+      >
+        <div className="flex items-center space-x-3">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white ${
+            !isPresent
+              ? 'bg-rose-900/80 text-rose-200 border border-rose-700'
+              : isFemale
+              ? 'bg-pink-600/30 text-pink-300 border border-pink-500/40'
+              : 'bg-blue-600/30 text-blue-300 border border-blue-500/40'
+          }`}>
+            {student.name.substring(0, 2).toUpperCase()}
+          </div>
+          <div>
+            <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+              <h4 className="font-bold text-sm text-white">{student.name}</h4>
+              <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-extrabold border ${
+                isFemale
+                  ? 'bg-pink-500/20 text-pink-300 border-pink-500/30'
+                  : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+              }`}>
+                {isFemale ? '👧 Girl' : '👦 Boy'}
+              </span>
+              {sentNotif && (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  WA Sent
+                </span>
+              )}
+              {pendingNotif && !sentNotif && (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  30s Pending
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400">Phone: {student.parent_phone}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => toggleStatus(student.id)}
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1 transition-all ${
+              isPresent
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                : 'bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-slate-200'
+            }`}
+          >
+            <Check className="w-3.5 h-3.5" />
+            <span>Present</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => toggleStatus(student.id)}
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1 transition-all ${
+              !isPresent
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 animate-pulse'
+                : 'bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-slate-200'
+            }`}
+          >
+            <X className="w-3.5 h-3.5" />
+            <span>Absent</span>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-28 max-w-md mx-auto relative flex flex-col justify-between">
       {/* Sticky Top Header */}
@@ -161,7 +285,7 @@ export const ClassAttendance: React.FC = () => {
               {classVal === 'Bhavani' ? 'Bhavani Branch Attendance' : classVal === '1st-8th' ? '1st - 8th Standard Attendance' : `${classVal} Standard Attendance`}
             </h1>
             <p className="text-xs text-blue-400 font-medium">
-              {formattedDateHeader} • {students.length} Student{students.length !== 1 ? 's' : ''}
+              {formattedDateHeader} • {students.length} Total ({maleStudents.length} Boys, {femaleStudents.length} Girls)
             </p>
           </div>
           <div className="w-9 h-9 flex items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-bold">
@@ -172,40 +296,88 @@ export const ClassAttendance: React.FC = () => {
 
       {/* Main Roll Call Content */}
       <main className="p-4 space-y-4 flex-1">
-        {/* Quick Filter & Search Bar */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
+        {/* Gender Segmented Switcher & Quick Actions */}
+        <div className="space-y-2.5">
+          {/* Section Filter Tabs */}
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-900/90 border border-slate-800 rounded-2xl">
             <button
-              onClick={markAllPresent}
-              className="text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-xl hover:bg-emerald-500/30 transition-all flex items-center space-x-1"
+              type="button"
+              onClick={() => setSelectedGenderTab('ALL')}
+              className={`py-2 px-1 text-xs font-bold rounded-xl transition-all flex items-center justify-center space-x-1.5 ${
+                selectedGenderTab === 'ALL'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
             >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Mark All Present</span>
+              <span>All</span>
+              <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/30 font-semibold">{students.length}</span>
             </button>
-            <span className="text-[11px] text-slate-400 font-medium">
-              Default: All Present
-            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedGenderTab('MALE')}
+              className={`py-2 px-1 text-xs font-bold rounded-xl transition-all flex items-center justify-center space-x-1.5 ${
+                selectedGenderTab === 'MALE'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span>👦 Boys</span>
+              <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-blue-900/40 text-blue-200 font-semibold">{maleStudents.length}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedGenderTab('FEMALE')}
+              className={`py-2 px-1 text-xs font-bold rounded-xl transition-all flex items-center justify-center space-x-1.5 ${
+                selectedGenderTab === 'FEMALE'
+                  ? 'bg-pink-600 text-white shadow-md shadow-pink-600/30'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span>👧 Girls</span>
+              <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-pink-900/40 text-pink-200 font-semibold">{femaleStudents.length}</span>
+            </button>
           </div>
 
+          {/* Quick Mark Buttons */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            <button
+              onClick={markAllPresent}
+              className="text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-1.5 rounded-xl hover:bg-emerald-500/25 transition-all flex items-center space-x-1 shrink-0"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>All Present</span>
+            </button>
+
+            {maleStudents.length > 0 && (
+              <button
+                onClick={markBoysPresent}
+                className="text-[11px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30 px-2.5 py-1.5 rounded-xl hover:bg-blue-500/25 transition-all flex items-center space-x-1 shrink-0"
+              >
+                <span>👦 Boys Present ({malePresentCount}/{maleStudents.length})</span>
+              </button>
+            )}
+
+            {femaleStudents.length > 0 && (
+              <button
+                onClick={markGirlsPresent}
+                className="text-[11px] font-bold bg-pink-500/15 text-pink-300 border border-pink-500/30 px-2.5 py-1.5 rounded-xl hover:bg-pink-500/25 transition-all flex items-center space-x-1 shrink-0"
+              >
+                <span>👧 Girls Present ({femalePresentCount}/{femaleStudents.length})</span>
+              </button>
+            )}
+          </div>
+
+          {/* Search Bar */}
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search student by name..."
+              placeholder="Search student by name or phone..."
               className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
             />
           </div>
-        </div>
-
-        {/* Info Banner */}
-        <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
-          <span className="flex items-center space-x-1.5">
-            <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-            <span>Tap any button to toggle student status</span>
-          </span>
-          <span className="font-semibold text-slate-300">{students.length} Total</span>
         </div>
 
         {/* Student Cards List */}
@@ -223,91 +395,75 @@ export const ClassAttendance: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => navigate('/students/add')}
+              onClick={() => navigate('/students/add', { state: { className: classVal } })}
               className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all inline-flex items-center space-x-1.5"
             >
               <span>+ Add Student to {classVal}</span>
             </button>
           </div>
         ) : (
-          <div className="space-y-2.5">
-            {filteredStudents.map((student) => {
-              const status = attendanceMap[student.id] || 'PRESENT'
-              const isPresent = status === 'PRESENT'
-              const sentNotif = notifications.find(n => 
-                n.student_id === student.id && 
-                n.status === 'Sent' && 
-                ((n.created_at && n.created_at.startsWith(todayStr)) || (n.scheduled_at && n.scheduled_at.startsWith(todayStr)))
-              )
-              const pendingNotif = notifications.find(n => 
-                n.student_id === student.id && 
-                n.status === 'Pending' && 
-                ((n.created_at && n.created_at.startsWith(todayStr)) || (n.scheduled_at && n.scheduled_at.startsWith(todayStr)))
-              )
-
-              return (
-                <div
-                  key={student.id}
-                  className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
-                    isPresent
-                      ? 'bg-slate-900/90 border-slate-800'
-                      : 'bg-rose-950/20 border-rose-800/40 shadow-lg shadow-rose-950/20'
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white ${
-                      isPresent ? 'bg-slate-800 text-slate-200 border border-slate-700' : 'bg-rose-900/80 text-rose-200 border border-rose-700'
-                    }`}>
-                      {student.name.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <h4 className="font-bold text-sm text-white">{student.name}</h4>
-                        {sentNotif && (
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            WhatsApp Alert Sent
-                          </span>
-                        )}
-                        {pendingNotif && !sentNotif && (
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            30s Alert Pending
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-400">Phone: {student.parent_phone}</p>
-                    </div>
-                  </div>
-
+          <div className="space-y-4">
+            {/* 1. MALE (BOYS) SECTION */}
+            {(selectedGenderTab === 'ALL' || selectedGenderTab === 'MALE') && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1">
                   <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleStatus(student.id)}
-                      className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1 transition-all ${
-                        isPresent
-                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
-                          : 'bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-slate-200'
-                      }`}
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Present</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => toggleStatus(student.id)}
-                      className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1 transition-all ${
-                        !isPresent
-                          ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 animate-pulse'
-                          : 'bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-slate-200'
-                      }`}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      <span>Absent</span>
-                    </button>
+                    <span className="text-base">👦</span>
+                    <h3 className="font-extrabold text-xs text-blue-300 uppercase tracking-wider">Boys Section</h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                      {filteredMaleStudents.length} {filteredMaleStudents.length === 1 ? 'Student' : 'Students'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-semibold text-slate-400">
+                    <span className="text-emerald-400 font-bold">{malePresentCount} Present</span>
+                    {maleAbsentCount > 0 && (
+                      <span className="text-rose-400 font-bold ml-1.5">({maleAbsentCount} Absent)</span>
+                    )}
                   </div>
                 </div>
-              )
-            })}
+
+                {filteredMaleStudents.length === 0 ? (
+                  <div className="p-4 text-center rounded-2xl bg-slate-900/40 border border-slate-800/60 text-xs text-slate-500">
+                    No boys match your search.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredMaleStudents.map(renderStudentItem)}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 2. FEMALE (GIRLS) SECTION */}
+            {(selectedGenderTab === 'ALL' || selectedGenderTab === 'FEMALE') && (
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-base">👧</span>
+                    <h3 className="font-extrabold text-xs text-pink-300 uppercase tracking-wider">Girls Section</h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                      {filteredFemaleStudents.length} {filteredFemaleStudents.length === 1 ? 'Student' : 'Students'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-semibold text-slate-400">
+                    <span className="text-emerald-400 font-bold">{femalePresentCount} Present</span>
+                    {femaleAbsentCount > 0 && (
+                      <span className="text-rose-400 font-bold ml-1.5">({femaleAbsentCount} Absent)</span>
+                    )}
+                  </div>
+                </div>
+
+                {filteredFemaleStudents.length === 0 ? (
+                  <div className="p-4 text-center rounded-2xl bg-slate-900/40 border border-slate-800/60 text-xs text-slate-500">
+                    No girls match your search.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredFemaleStudents.map(renderStudentItem)}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -319,6 +475,8 @@ export const ClassAttendance: React.FC = () => {
             <span className="text-emerald-400">{presentCount} Present</span>
             <span className="text-slate-600">•</span>
             <span className="text-rose-400">{absentCount} Absent</span>
+            <span className="text-slate-600">•</span>
+            <span className="text-slate-400 text-[11px]">👦 {malePresentCount}/{maleStudents.length} | 👧 {femalePresentCount}/{femaleStudents.length}</span>
           </div>
           <div className="flex items-center space-x-1.5 text-[11px] font-semibold">
             {gwStatus.status === 'CONNECTED' ? (

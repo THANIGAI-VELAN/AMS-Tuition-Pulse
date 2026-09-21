@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.students (
     parent_phone TEXT NOT NULL,
     whatsapp_phone TEXT NOT NULL,
     school TEXT,
+    gender TEXT DEFAULT 'MALE' CHECK (gender IN ('MALE', 'FEMALE')),
     joining_date DATE DEFAULT CURRENT_DATE,
     monthly_fee NUMERIC(10,2) DEFAULT 1500,
     fee_status TEXT DEFAULT 'PENDING' CHECK (fee_status IN ('PENDING', 'PAID', 'PARTIAL', 'OVERDUE')),
@@ -33,6 +34,7 @@ ALTER TABLE public.students ADD CONSTRAINT students_class_name_check CHECK (clas
 
 -- Migration support: Ensure extended columns exist if table was previously created
 ALTER TABLE public.students DROP COLUMN IF EXISTS parent_name;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS gender TEXT DEFAULT 'MALE' CHECK (gender IN ('MALE', 'FEMALE'));
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS joining_date DATE DEFAULT CURRENT_DATE;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS monthly_fee NUMERIC(10,2) DEFAULT 1500;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS fee_status TEXT DEFAULT 'PENDING';
@@ -98,6 +100,7 @@ ALTER TABLE public.class_groups ADD CONSTRAINT class_groups_class_name_check CHE
 -- 3. INDEXES FOR PERFORMANCE
 CREATE INDEX IF NOT EXISTS idx_students_class ON public.students(class_name);
 CREATE INDEX IF NOT EXISTS idx_students_active ON public.students(active);
+CREATE INDEX IF NOT EXISTS idx_students_gender ON public.students(gender);
 CREATE INDEX IF NOT EXISTS idx_attendance_student_date ON public.attendance(student_id, attendance_date);
 CREATE INDEX IF NOT EXISTS idx_attendance_date ON public.attendance(attendance_date);
 CREATE INDEX IF NOT EXISTS idx_notifications_status_scheduled ON public.notifications(status, scheduled_at);

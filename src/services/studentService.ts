@@ -28,12 +28,13 @@ export const fetchStudents = async (className?: ClassName): Promise<Student[]> =
     const currentCached = getCachedStudents()
     const rawStudents = (res.data || []) as Student[]
     
-    // Merge remote data with local cache ensuring joining_date, monthly_fee, and fee_status are preserved
+    // Merge remote data with local cache ensuring joining_date, monthly_fee, gender, and fee_status are preserved
     const students: Student[] = rawStudents.map(remote => {
       const local = currentCached.find(c => c.id === remote.id)
       return {
         ...local,
         ...remote,
+        gender: remote.gender || local?.gender || 'MALE',
         joining_date: remote.joining_date || local?.joining_date || remote.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
         monthly_fee: remote.monthly_fee ?? local?.monthly_fee ?? 1500,
         fee_status: (remote.fee_status || local?.fee_status || 'PENDING') as FeeStatus
@@ -67,6 +68,7 @@ export const fetchStudentById = async (id: string): Promise<Student | null> => {
     const merged: Student = {
       ...cached,
       ...remote,
+      gender: remote.gender || cached?.gender || 'MALE',
       joining_date: remote.joining_date || cached?.joining_date || remote.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
       monthly_fee: remote.monthly_fee ?? cached?.monthly_fee ?? 1500,
       fee_status: (remote.fee_status || cached?.fee_status || 'PENDING') as FeeStatus
@@ -89,6 +91,7 @@ export const createStudent = async (studentData: Omit<Student, 'id' | 'created_a
   const now = new Date().toISOString()
   const fallbackStudent: Student = {
     ...studentData,
+    gender: studentData.gender || 'MALE',
     joining_date: studentData.joining_date || now.split('T')[0],
     monthly_fee: Number(studentData.monthly_fee) || 1500,
     fee_status: studentData.fee_status || 'PENDING',
@@ -111,6 +114,7 @@ export const createStudent = async (studentData: Omit<Student, 'id' | 'created_a
       parent_phone: studentData.parent_phone,
       whatsapp_phone: studentData.whatsapp_phone || studentData.parent_phone,
       school: studentData.school || '',
+      gender: fallbackStudent.gender,
       joining_date: fallbackStudent.joining_date,
       monthly_fee: fallbackStudent.monthly_fee,
       fee_status: fallbackStudent.fee_status,
@@ -151,6 +155,7 @@ export const createStudent = async (studentData: Omit<Student, 'id' | 'created_a
       const created: Student = {
         ...fallbackStudent,
         ...(res.data as Student),
+        gender: (res.data as Student).gender || fallbackStudent.gender,
         joining_date: (res.data as Student).joining_date || fallbackStudent.joining_date,
         monthly_fee: (res.data as Student).monthly_fee ?? fallbackStudent.monthly_fee,
         fee_status: (res.data as Student).fee_status || fallbackStudent.fee_status
@@ -194,7 +199,7 @@ export const updateStudent = async (id: string, studentData: Partial<Student>): 
     // Fallback if remote schema doesn't yet have extended columns
     if (res.error) {
       console.warn('Supabase update extended notice:', res.error.message)
-      const { monthly_fee, joining_date, fee_status, ...basePayload } = payloadToSend
+      const { monthly_fee, joining_date, fee_status, gender, ...basePayload } = payloadToSend
       res = await withTimeout(
         supabase
           .from('students')
@@ -210,6 +215,7 @@ export const updateStudent = async (id: string, studentData: Partial<Student>): 
       const synced: Student = {
         ...updated,
         ...(res.data as Student),
+        gender: (res.data as Student).gender || updated.gender,
         joining_date: (res.data as Student).joining_date || updated.joining_date,
         monthly_fee: (res.data as Student).monthly_fee ?? updated.monthly_fee,
         fee_status: (res.data as Student).fee_status || updated.fee_status
