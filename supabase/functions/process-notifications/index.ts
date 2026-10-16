@@ -93,10 +93,8 @@ Deno.serve(async (req) => {
       // 3. If still ABSENT -> Send WhatsApp Notification
       if (latestAttendance && latestAttendance.status === 'ABSENT') {
         const studentName = notif.students?.name || 'Student'
-        const className = notif.students?.class_name || ''
-        const dateStr = latestAttendance.attendance_date
-
-        const tamilMessageText = `வணக்கம்,\n\n📌 *SP Academy டியூஷன் மையம் அறிவிப்பு:*\nஉங்கள் பிள்ளை *${studentName}* (${className}) இன்று (${dateStr}) டியூஷன் வகுப்புக்கு வரவில்லை (*ABSENT*).\n\nஏதேனும் சந்தேகம் இருப்பின் எங்களை தொடர்பு கொள்ளவும்.\n\nநன்றி,\n*SP Academy நிர்வாகம்*`
+        const className = notif.students?.class_name ? ` (${notif.students.class_name})` : ''
+        const tamilMessageText = `வணக்கம்,\nஉங்கள் மகன் / மகள் *${studentName}*${className} டியூஷன் வகுப்புக்கு வரவில்லை (*ABSENT*).`
         const cleanPhone = notif.parent_phone.replace(/[^0-9]/g, '')
         const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone
 

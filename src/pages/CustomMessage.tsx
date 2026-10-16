@@ -83,7 +83,7 @@ export const CustomMessage: React.FC = () => {
           } else if (state.presetType === 'fees') {
             setMessageText(getTamilFeesReminderMessage({ studentName: s.name, className: s.class_name }))
           } else {
-            setMessageText(getTamilAbsenceMessage({ studentName: s.name, className: s.class_name }))
+            setMessageText(getTamilAbsenceMessage({ studentName: s.name, className: s.class_name, gender: s.gender }))
           }
         }
       } else if (!messageText) {
@@ -117,7 +117,8 @@ export const CustomMessage: React.FC = () => {
     if (!selectedStudent) return
     const params = {
       studentName: selectedStudent.name,
-      className: selectedStudent.class_name
+      className: selectedStudent.class_name,
+      gender: selectedStudent.gender
     }
 
     if (type === 'absence') {

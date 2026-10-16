@@ -155,7 +155,8 @@ export const processPendingNotifications = async (): Promise<{ processed: number
         const student = notif.students || studentList.find(s => s.id === notif.student_id)
         const messageText = getTamilAbsenceMessage({
           studentName: student?.name || 'Student',
-          className: student?.class_name || ''
+          className: student?.class_name || '',
+          gender: student?.gender
         })
 
         const res = await sendCustomWhatsAppMessage(notif.student_id, notif.parent_phone, messageText)

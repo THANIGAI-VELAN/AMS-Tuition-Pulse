@@ -1,11 +1,10 @@
-/**
- * SP Academy - Tamil WhatsApp Message Templates & URL Generators
- */
+import { Gender } from '../types/database.types'
 
 export interface StudentMessageParams {
   studentName?: string
   className?: string
   parentName?: string
+  gender?: Gender | string
   dateStr?: string
   month?: string
   amount?: number | string
@@ -39,22 +38,12 @@ export const createWhatsAppChatUrl = (phone: string, message: string): string =>
 /**
  * 1. Absence Alert in Tamil
  */
-export const getTamilAbsenceMessage = ({ studentName, className, dateStr, parentName }: StudentMessageParams): string => {
-  const salutation = parentName ? `வணக்கம் ${parentName} அவர்களே,` : `வணக்கம் பெற்றோர்களே,`
-  const date = dateStr || new Date().toLocaleDateString('ta-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-  const standard = className ? ` (${className} வகுப்பு)` : ''
+export const getTamilAbsenceMessage = ({ studentName, className, gender }: StudentMessageParams): string => {
+  const standard = className ? ` (${className})` : ''
+  const relation = gender === 'FEMALE' ? 'உங்கள் மகள்' : gender === 'MALE' ? 'உங்கள் மகன்' : 'உங்கள் மகன் / மகள்'
 
-  return `${salutation}
-  
-📌 *SP Academy டியூஷன் மையம் அறிவிப்பு:*
-
-உங்கள் பிள்ளை *${studentName}*${standard} இன்று (*${date}*) டியூஷன் வகுப்புக்கு வரவில்லை (*ABSENT*).
-
-ஏதேனும் அவசர காரணம் அல்லது சந்தேகம் இருப்பின் தயவுசெய்து எங்களை தொடர்பு கொள்ளவும்.
-
-நன்றி,
-*SP Academy நிர்வாகம்*
-📞 தொடர்பு: SP Academy`
+  return `வணக்கம்,
+${relation} *${studentName}*${standard} டியூஷன் வகுப்புக்கு வரவில்லை (*ABSENT*).`
 }
 
 /**
@@ -68,13 +57,10 @@ export const getTamilFeesReminderMessage = ({ studentName, className, month, amo
   return `${salutation}
 
 💰 *SP Academy - டியூஷன் கட்டண நினைவூட்டல்:*
-
-உங்கள் பிள்ளை *${studentName}* (${className || '10th/11th/12th'})-ன் *${feeMonth}* மாதத்திற்கான கட்டணம் (${feeAmount}) நிலுவையில் உள்ளது.
+ *${studentName}* (${className || '10th/11th/12th'})-ன் *${feeMonth}* மாதத்திற்கான கட்டணம் (${feeAmount}) நிலுவையில் உள்ளது.
 
 கட்டணத்தை விரைவில் செலுத்தி ஒத்துழைக்குமாறு அன்புடன் கேட்டுக்கொள்கிறோம்.
-
-நன்றி,
-*SP Academy நிர்வாகம்*`
+`
 }
 
 export const getTamilMultiMonthFeeMessage = ({
@@ -101,9 +87,7 @@ export const getTamilMultiMonthFeeMessage = ({
 மொத்த நிலுவைத் தொகை: *ரூ. ${totalAmountDue.toLocaleString('en-IN')}*
 
 தயவுசெய்து நிலுவைக் கட்டணத்தை விரைவில் செலுத்தி ஒத்துழைக்குமாறு அன்புடன் கேட்டுக்கொள்கிறோம்.
-
-நன்றி,
-*SP Academy நிர்வாகம்*`
+`
 }
 
 /**
